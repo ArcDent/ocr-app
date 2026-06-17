@@ -2,7 +2,7 @@
 
 > 日期：2026-06-17
 > 类型：Electron 桌面应用（OCR + LLM 结构化/摘要）
-> 状态：设计已确认，待写实施计划
+> 状态：设计已确认（含消歧补充），待写实施计划
 
 ## 1. 概述
 
@@ -30,6 +30,24 @@ ocr-app 是一个 Electron 桌面应用，对用户选择的图片/PDF 文件进
 | Prompt 设计 | 硬编码，两种模式可切换（faithful 严格忠实 / enhanced 智能增强），CoT + 标签输出，强调无占位符 |
 | 设置页组织 | 单弹窗分 Tab（OCR / LLM 两个标签页） |
 | thoughts 推理 | 存档（保存进 JobResult 与历史，详情页可折叠查看） |
+
+## 2.1 补充决策（消歧）
+
+针对自审发现的语义模糊 / 边界不清点，确认如下：
+
+| # | 议题 | 决策 |
+|---|---|---|
+| 1 | 目录文件收集 | 递归扫描子目录，命中 ocr2md 的 `DEFAULT_FILE_PATTERN`（jpg/jpeg/png/bmp/pdf/tiff/tif/gif）；扫描后在 UI 展示文件列表，用户勾选/取消后再开始处理 |
+| 2 | 历史存储方式 | 元数据（fileName/时间/mode/警告标志）存 electron-store；rawText、structuredText、summary、两段 thoughts 落盘为独立文件，store 仅存索引（路径）。避免 store 膨胀 |
+| 3 | 历史条数上限 | 最近 100 条，超出自动淘汰最旧（同时删对应落盘文件） |
+| 4 | 超长文本处理 | OCR 原文超阈值时分块，逐块结构化后拼接成完整 structuredText |
+| 5 | 分块阈值 | `AppSettings.chunkThreshold`，用户可配置，默认 12000 字符（约 8k token） |
+| 6 | 分块摘要 | 拼接成完整 structuredText 后统一做一次摘要 |
+| 7 | 拼接后仍超限 | 若拼接后的 structuredText 仍超 chunkThreshold，摘要阶段自动降级为 map-reduce（各块小摘要 → 再汇总） |
+| 8 | 导出文件结构 | 每个源文件导出一个 `<name>.md`（仅正文/结构化文本，含 `## 摘要` + `## 正文` 两段）；另生成一个 `index.md` 汇总 |
+| 9 | index.md 内容 | 含各文件摘要 + 指向对应正文 `.md` 的相对链接，方便跳转 |
+| 10 | retry 范围 | 仅对可恢复错误（超时 / 5xx / 网络）retry 1 次；4xx（认证失败 / 参数错）不重试，直接标 error |
+| 11 | 多页 PDF | 整个 PDF = 1 个 job，TextIn multipage 返回所有页拼成单份 rawText（与 ocr2md 一致） |
 
 ## 3. 架构与数据流
 
@@ -153,7 +171,10 @@ interface AppSettings {
   textin: { appId: string; secretCode: string; baseUrl: string }
   llm: { baseUrl: string; apiKey: string; model: string }
   concurrency: number              // 默认 3
+  chunkThreshold: number           // 分块阈值（字符数），默认 12000
 }
+
+const HISTORY_LIMIT = 100          // 历史保留上限，超出淘汰最旧
 ```
 
 进度推送流：orchestrator 每推进一个文件的 stage 就 emit `ON_JOB_PROGRESS`，renderer 的 `useOcrStore` 订阅后更新队列列表状态图标（✅/⏳/❌）。
@@ -261,6 +282,28 @@ function assertNoPlaceholder(text: string): { clean: boolean; hits: string[] }
 - `<thoughts>` 存档但不进 `structuredText`/`summary`，不污染导出。
 - 摘要基于结构化文本（串联流程）而非 OCR 原文。
 
+### 6.5 分块与超长处理
+
+阈值取 `settings.chunkThreshold`（默认 12000 字符）。
+
+**结构化阶段**：
+
+1. 若 `rawText.length <= 阈值` → 单次结构化（走 6.1/6.2）。
+2. 否则按段落边界切成多块（每块 ≤ 阈值，尽量不切断段落）→ 逐块跑结构化 prompt → 各块 `<result>` 顺序拼接成完整 `structuredText`；各块 `<thoughts>` 也拼接存档。
+
+**摘要阶段**：
+
+1. 若 `structuredText.length <= 阈值` → 单次摘要（走 6.3）。
+2. 否则 map-reduce：每块结构化文本各出一个小摘要 → 把所有小摘要拼接后再跑一次 6.3 摘要 prompt 得到最终 summary。
+
+```ts
+function splitIntoChunks(text: string, threshold: number): string[]  // 按段落边界切
+function structureText(rawText, mode, threshold, llm): Promise<{ text: string; thoughts: string }>
+function summarize(structuredText, threshold, llm): Promise<{ text: string; thoughts: string }>  // 内部按需 map-reduce
+```
+
+占位符守卫对拼接后的完整 `structuredText` 整体跑一次。
+
 ## 7. 错误处理与边界
 
 分阶段错误隔离（pipeline orchestrator）：每个文件是独立 job，单个失败不影响整批，失败标 `stage: 'error'` + `error` 文案，可单独重试。
@@ -268,10 +311,12 @@ function assertNoPlaceholder(text: string): { clean: boolean; hits: string[] }
 | 阶段 | 失败场景 | 处理 |
 |---|---|---|
 | 读文件 | 路径不可读/格式不支持 | job 直接 error，跳过 OCR |
-| OCR (TextIn) | HTTP 非 200 / code≠200 / 超时 | 复用 ocr2md 错误抛出；retry 1 次后标 error |
-| 结构化 (LLM) | 端点不通/超时/返回空 | retry 1 次；连续失败标 error，保留 rawText |
-| 摘要 (LLM) | 同上 | 失败不影响已得 structuredText，summary 置空 + 局部警告 |
+| OCR (TextIn) | HTTP 非 200 / code≠200 / 超时 | 仅可恢复错误（超时/5xx/网络）retry 1 次；4xx 不重试；失败标 error |
+| 结构化 (LLM) | 端点不通/超时/返回空 | 仅可恢复错误 retry 1 次；4xx 不重试；连续失败标 error，保留 rawText |
+| 摘要 (LLM) | 同上 | retry 规则同上；失败不影响已得 structuredText，summary 置空 + 局部警告 |
 | 占位符守卫 | 正则命中 | 不算失败，标 hasPlaceholderWarning |
+
+> retry 策略：`isRecoverable(err)` 判定——超时 / 网络错误 / HTTP 5xx 为可恢复，retry 1 次；HTTP 4xx（401 认证、400 参数）直接标 error 不重试。
 
 - **配置缺失防护**：启动批量前校验 `settings.textin`/`settings.llm` 填全，缺则 toast 引导去设置弹窗，不发起请求。
 - **并发与取消**：信号量控制并发（默认 3）；`OCR_CANCEL` 设取消标志，在途请求跑完、未开始的不再启动。
@@ -289,8 +334,10 @@ function assertNoPlaceholder(text: string): { clean: boolean; hits: string[] }
 | `llm/llm-client.ts` | `extractResult`/`extractThoughts` 提取与降级、mock fetch 测请求体 |
 | 占位符守卫 | `assertNoPlaceholder` 命中各类占位符、正常文本不误报 |
 | `ocr/textin-client` | 复用 ocr2md 测试 + mock fetch 测 header/错误码 |
-| `pipeline/orchestrator` | 并发上限、单 job 失败隔离、retry 1 次、取消标志 |
-| `export/markdown-exporter` | 文件名映射、buildMarkdown 输出格式 |
+| `pipeline/orchestrator` | 并发上限、单 job 失败隔离、`isRecoverable` 仅可恢复错误 retry 1 次、4xx 不重试、取消标志 |
+| 分块逻辑 | `splitIntoChunks` 按段落切且每块 ≤ 阈值；超阈值走分块结构化、超阈值摘要走 map-reduce |
+| `export/markdown-exporter` | 文件名映射、单文件含摘要+正文两段、index.md 含摘要+相对链接 |
+| 历史存储 | 元数据进 store、正文落盘、超 100 条淘汰最旧并删落盘文件 |
 
 渲染进程测试：
 
