@@ -15,5 +15,37 @@
     "test:renderer": "vitest --project renderer",
     "lint": "eslint src --ext .ts,.tsx",
     "typecheck": "tsc --noEmit"
+  },
+  "directories": {
+    "doc": "docs"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^14.3.1",
+    "@types/node": "^20.19.43",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "autoprefixer": "^10.5.0",
+    "electron": "^28.3.3",
+    "electron-vite": "^2.3.0",
+    "eslint": "^8.57.1",
+    "jsdom": "^23.2.0",
+    "postcss": "^8.5.15",
+    "prettier": "^3.8.4",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5.9.3",
+    "vite": "^5.4.21",
+    "vitest": "^1.6.1"
+  },
+  "keywords": [],
+  "type": "commonjs",
+  "dependencies": {
+    "electron-store": "^8.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.30.4",
+    "sonner": "^1.7.4",
+    "zustand": "^4.5.7"
   }
 }
