@@ -5,6 +5,7 @@
   "main": "./out/main/index.js",
   "author": "ArcDent",
   "license": "MIT",
+  "private": true,
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",

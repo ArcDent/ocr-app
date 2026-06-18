@@ -6,4 +6,7 @@ dist/
 .vite
 .electron-vite
 coverage/
-.vitest
+.vitest.env
+.env.local
+.superpowers/
+.env

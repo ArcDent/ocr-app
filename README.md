@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-## Tech Stack
+## Tech Stack (Planned)
 
 - Electron 28
 - React 18
