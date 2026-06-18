@@ -1,0 +1,18 @@
+{
+  "name": "ocr-app",
+  "version": "0.1.0",
+  "description": "OCR + LLM structured text extraction desktop app",
+  "main": "./out/main/index.js",
+  "author": "ArcDent",
+  "license": "MIT",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "test": "vitest",
+    "test:main": "vitest --project main",
+    "test:renderer": "vitest --project renderer",
+    "lint": "eslint src --ext .ts,.tsx",
+    "typecheck": "tsc --noEmit"
+  }
+}
