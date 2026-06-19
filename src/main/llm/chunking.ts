@@ -1,5 +1,6 @@
 import type { ProcessMode } from '../../shared/types'
 import type { LlmClient } from './llm-client'
+import type { DocType } from './types'
 import { buildStructurePrompt, buildSummaryPrompt } from './prompts'
 
 /**
@@ -48,25 +49,42 @@ export function splitIntoChunks(text: string, threshold: number): string[] {
 }
 
 /**
+ * Aggregate per-chunk doc types into a single type.
+ * - all same -> that type
+ * - any diff or any unknown -> mixed
+ * Per spec 自审修订点 4.
+ */
+function aggregateType(types: DocType[]): DocType {
+  if (types.length === 0) return 'unknown'
+  if (types.length === 1) return types[0]
+  const first = types[0]
+  for (const t of types) {
+    if (t !== first || t === 'unknown') return 'mixed'
+  }
+  return first
+}
+
+/**
  * Structure OCR text with automatic chunking if needed
  * @param rawText - Raw OCR text to structure
  * @param mode - Processing mode: 'faithful' (strict) or 'enhanced' (with OCR error correction)
  * @param threshold - Character threshold for chunking
  * @param llmClient - LLM client for API calls
- * @returns Structured text with optional thoughts
+ * @returns Structured text with optional thoughts and aggregated doc type
  *
  * @remarks
  * - If text <= threshold, makes single LLM call
  * - If text > threshold, splits into chunks and processes each separately
  * - Concatenates thoughts from all chunks with separator
  * - Final text is direct concatenation of all chunk results
+ * - Aggregated type: all same -> that type; any diff or unknown -> mixed
  */
 export async function structureText(
   rawText: string,
   mode: ProcessMode,
   threshold: number,
   llmClient: LlmClient
-): Promise<{ text: string; thoughts?: string }> {
+): Promise<{ text: string; thoughts?: string; type: DocType }> {
   const chunks = splitIntoChunks(rawText, threshold)
 
   // Single chunk case - direct call
@@ -75,18 +93,20 @@ export async function structureText(
     const response = await llmClient.callLlm(messages)
     const text = llmClient.extractResult(response)
     const thoughts = llmClient.extractThoughts(response)
-    return { text, thoughts }
+    const type = llmClient.extractType(response)
+    return { text, thoughts, type }
   }
 
   // Multiple chunks case - process each and concatenate
-  const results: Array<{ text: string; thoughts?: string }> = []
+  const results: Array<{ text: string; thoughts?: string; type: DocType }> = []
 
   for (const chunk of chunks) {
     const messages = buildStructurePrompt(chunk, mode)
     const response = await llmClient.callLlm(messages)
     const text = llmClient.extractResult(response)
     const thoughts = llmClient.extractThoughts(response)
-    results.push({ text, thoughts })
+    const type = llmClient.extractType(response)
+    results.push({ text, thoughts, type })
   }
 
   // Concatenate all results
@@ -100,7 +120,7 @@ export async function structureText(
       ? allThoughts.join('\n\n--- Chunk Boundary ---\n\n')
       : undefined
 
-  return { text: finalText, thoughts: finalThoughts }
+  return { text: finalText, thoughts: finalThoughts, type: aggregateType(results.map((r) => r.type)) }
 }
 
 /**
@@ -108,7 +128,7 @@ export async function structureText(
  * @param structuredText - Structured document text to summarize
  * @param threshold - Character threshold for chunking
  * @param llmClient - LLM client for API calls
- * @returns Summary with optional thoughts
+ * @returns Summary with optional thoughts; type is always 'prose' (summaries are narrative)
  *
  * @remarks
  * - If text <= threshold, makes single summary call
@@ -116,12 +136,13 @@ export async function structureText(
  *   1. Map: Split into chunks and summarize each
  *   2. Reduce: Concatenate chunk summaries and summarize the result
  * - Preserves thoughts from both map and reduce phases
+ * - type is always 'prose' since summarization produces narrative text
  */
 export async function summarize(
   structuredText: string,
   threshold: number,
   llmClient: LlmClient
-): Promise<{ text: string; thoughts?: string }> {
+): Promise<{ text: string; thoughts?: string; type: DocType }> {
   const chunks = splitIntoChunks(structuredText, threshold)
 
   // Single chunk case - direct summary
@@ -130,7 +151,7 @@ export async function summarize(
     const response = await llmClient.callLlm(messages)
     const text = llmClient.extractResult(response)
     const thoughts = llmClient.extractThoughts(response)
-    return { text, thoughts }
+    return { text, thoughts, type: 'prose' }
   }
 
   // Map phase: Summarize each chunk
@@ -168,5 +189,5 @@ export async function summarize(
 
   const finalThoughts = allThoughts.length > 0 ? allThoughts.join('\n\n') : undefined
 
-  return { text: finalText, thoughts: finalThoughts }
+  return { text: finalText, thoughts: finalThoughts, type: 'prose' }
 }

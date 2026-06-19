@@ -87,6 +87,7 @@ describe('structureText', () => {
       callLlm: vi.fn(),
       extractResult: vi.fn(),
       extractThoughts: vi.fn(),
+      extractType: vi.fn(),
     } as unknown as LlmClient
   })
 
@@ -189,6 +190,60 @@ describe('structureText', () => {
     // Verify system prompt contains enhanced mode keywords
     expect(callArgs[0].content).toContain('增强模式')
   })
+
+  it('should return type from extractType for single chunk', async () => {
+    const rawText = 'Short OCR text'
+    const mode: ProcessMode = 'faithful'
+    vi.mocked(mockClient.callLlm).mockResolvedValue('<type>kv</type><result>x</result>')
+    vi.mocked(mockClient.extractResult).mockReturnValue('x')
+    vi.mocked(mockClient.extractThoughts).mockReturnValue(undefined)
+    vi.mocked(mockClient.extractType).mockReturnValue('kv')
+
+    const result = await structureText(rawText, mode, 100, mockClient)
+    expect(result.type).toBe('kv')
+  })
+
+  it('should aggregate same type across chunks to that type', async () => {
+    const rawText = 'a'.repeat(60) + '\n\n' + 'b'.repeat(60)
+    const mode: ProcessMode = 'faithful'
+    vi.mocked(mockClient.callLlm)
+      .mockResolvedValueOnce('<type>kv</type><result>1</result>')
+      .mockResolvedValueOnce('<type>kv</type><result>2</result>')
+    vi.mocked(mockClient.extractResult).mockReturnValueOnce('1').mockReturnValueOnce('2')
+    vi.mocked(mockClient.extractThoughts).mockReturnValue(undefined)
+    vi.mocked(mockClient.extractType).mockReturnValueOnce('kv').mockReturnValueOnce('kv')
+
+    const result = await structureText(rawText, mode, 100, mockClient)
+    expect(result.type).toBe('kv')
+  })
+
+  it('should aggregate different types across chunks to mixed', async () => {
+    const rawText = 'a'.repeat(60) + '\n\n' + 'b'.repeat(60)
+    const mode: ProcessMode = 'faithful'
+    vi.mocked(mockClient.callLlm)
+      .mockResolvedValueOnce('<type>kv</type><result>1</result>')
+      .mockResolvedValueOnce('<type>prose</type><result>2</result>')
+    vi.mocked(mockClient.extractResult).mockReturnValueOnce('1').mockReturnValueOnce('2')
+    vi.mocked(mockClient.extractThoughts).mockReturnValue(undefined)
+    vi.mocked(mockClient.extractType).mockReturnValueOnce('kv').mockReturnValueOnce('prose')
+
+    const result = await structureText(rawText, mode, 100, mockClient)
+    expect(result.type).toBe('mixed')
+  })
+
+  it('should aggregate to mixed when any chunk type is unknown', async () => {
+    const rawText = 'a'.repeat(60) + '\n\n' + 'b'.repeat(60)
+    const mode: ProcessMode = 'faithful'
+    vi.mocked(mockClient.callLlm)
+      .mockResolvedValueOnce('<type>kv</type><result>1</result>')
+      .mockResolvedValueOnce('<result>2</result>')
+    vi.mocked(mockClient.extractResult).mockReturnValueOnce('1').mockReturnValueOnce('2')
+    vi.mocked(mockClient.extractThoughts).mockReturnValue(undefined)
+    vi.mocked(mockClient.extractType).mockReturnValueOnce('kv').mockReturnValueOnce('unknown')
+
+    const result = await structureText(rawText, mode, 100, mockClient)
+    expect(result.type).toBe('mixed')
+  })
 })
 
 describe('summarize', () => {
@@ -199,6 +254,7 @@ describe('summarize', () => {
       callLlm: vi.fn(),
       extractResult: vi.fn(),
       extractThoughts: vi.fn(),
+      extractType: vi.fn(),
     } as unknown as LlmClient
   })
 
@@ -340,5 +396,28 @@ describe('summarize', () => {
 
     expect(mockClient.callLlm).toHaveBeenCalledTimes(4) // 3 map + 1 reduce
     expect(result.text).toBe('Final')
+  })
+
+  it('should always return type prose', async () => {
+    const structuredText = 'Short structured document'
+    vi.mocked(mockClient.callLlm).mockResolvedValue('<result>summary</result>')
+    vi.mocked(mockClient.extractResult).mockReturnValue('summary')
+    vi.mocked(mockClient.extractThoughts).mockReturnValue(undefined)
+
+    const result = await summarize(structuredText, 100, mockClient)
+    expect(result.type).toBe('prose')
+  })
+
+  it('should return type prose even in map-reduce', async () => {
+    const structuredText = 'a'.repeat(60) + '\n\n' + 'b'.repeat(60)
+    vi.mocked(mockClient.callLlm)
+      .mockResolvedValueOnce('<result>S1</result>')
+      .mockResolvedValueOnce('<result>S2</result>')
+      .mockResolvedValueOnce('<result>Final</result>')
+    vi.mocked(mockClient.extractResult).mockReturnValueOnce('S1').mockReturnValueOnce('S2').mockReturnValueOnce('Final')
+    vi.mocked(mockClient.extractThoughts).mockReturnValue(undefined)
+
+    const result = await summarize(structuredText, 100, mockClient)
+    expect(result.type).toBe('prose')
   })
 })
