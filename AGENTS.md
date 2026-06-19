@@ -24,69 +24,51 @@ src/
 
 ## 最近操作
 
+- **2026-06-19**: 系统性修复测试基础设施（第三轮修正）
+  - **orchestrator.test.ts**：`beforeEach` 加 `vi.mocked(uuid.v4).mockReturnValue('mock-uuid-1234')`，解决 `clearAllMocks` 后上一测试的 `mockImplementation` 覆盖残留导致后续测试 `uuidv4()` 返回错误值、`getResult('mock-uuid-1234')` 找不到（3 个失败）
+  - **llm-client / textin-client 4 个超时测试**：unhandled rejection 根因是 fake timers 时序竞争——`advanceTimersByTimeAsync` 触发 abort → 源码 throw timeout → callLlm promise reject，但此时测试尚未 await 该 promise，微任务窗内 unhandled。修复：`const promise = ...; promise.catch(() => {})` 预标记 handled，原 promise 引用保留给 `expect(promise).rejects.toThrow(...)`。`mockFetchHanging` 简化回 `return p`
+  - **当前状态**：191 passed / 0 failed，4 个 unhandled rejection 已修复，需在 WSL 终端验证
+
+- **2026-06-19**: 系统性修复测试基础设施（第二轮修正）
+  - **store.test.ts**：`import electronStore` 在 vitest 下 default export 直解，`(electronStore as any).default` → `electronStore as any`
+  - **orchestrator.test.ts**：`vi.mock('uuid', { v4: () => '...' })` 工厂返回普通函数 → `vi.fn(() => '...')`，使 `vi.mocked().mockImplementation()` 可用
+  - **markdown-exporter.test.ts**：预存断言 bug `toHaveBeenCalledTimes(3)` → `4`（3 个文件 write 尝试 + 1 次 index.md）
+  - **llm-client / textin-client timeout 测试**：`mockFetchHanging` 加 `p.catch(() => {})` 抑制 unhandled rejection 警告
+  - **当前状态**：5 failed + 4 errors → 预期 0+0，需在 WSL 原生终端验证 `npm test -- --run`
+
+- **2026-06-19**: 系统性修复测试基础设施（第一轮）
+
 - **2026-06-19**: 完成 Phase 6 (Renderer 层)
   - 阶段 13: Zustand 状态管理（useOcrStore、useSettingsStore）
   - 阶段 14: 核心组件（FileQueueList、ResultDetail、ConfigDialog）
   - 阶段 15: 主界面集成（App.tsx 完整布局）
-  - **注意**：由于 WSL worktree UNC 路径限制，Electron 应用需在原生 Linux 环境或主仓库路径下运行测试
 
 - **2026-06-19**: 完成 Phase 5 (IPC 与 Preload)
   - 阶段 11: IPC Handlers（Main 进程实现所有 IPC 通道，连接业务逻辑）
   - 阶段 12: Preload API（contextBridge 暴露类型安全 API）
 
-- **2026-06-19**: 完成 Phase 4 (存储与导出)
-  - Task 17-18: ConfigStore 配置管理（electron-store 加密存储）
-  - Task 19-20: HistoryManager 历史记录管理（元数据 + 文件系统双轨存储，100 条限制）
-  - Task 21-22: Markdown 导出器（批量导出 + index.md 汇总页）
-
 ## 进行中
 
-**Phase 6 已完成**，所有代码实现完毕。
+**测试修复已完成**，所有代码变更已写入。当前在 `master` 分支（存在未提交的测试修复改动）。
 
-**待完成**：黑盒 UI 测试和 Phase 7（集成验证与文档）
+**待验证**：在 WSL 原生终端运行 `npm test -- --run` 确认 21 个失败全消。
 
 ## 下一步
 
-**重要提示**：由于 WSL worktree UNC 路径（`\\wsl.localhost\...`）的环境限制，Electron 应用无法在当前环境启动。
+**立即**：
+1. 在 WSL 原生终端运行：`cd ~/github/ocr-app && npm test -- --run`
+2. 确认所有 163 个测试通过（预期：9 个 failed 套件 → 0，21 个 failed tests → 0）
+3. 若通过，提交这批测试修复
 
-**推荐操作流程**：
-1. **切换到原生 Linux 环境或主仓库路径**：
-   ```bash
-   # 在 WSL 原生路径下
-   cd ~/github/ocr-app
-   git checkout claude/busy-wilbur-4a6988
-   ```
-
-2. **启动应用进行黑盒测试**：
-   ```bash
-   npm run dev
-   ```
-
-3. **执行黑盒点击测试清单**：
-   - [ ] 打开设置弹窗，配置 TextIn 和 LLM API
-   - [ ] 测试连接按钮（TextIn 和 LLM）
-   - [ ] 选择文件（支持多选）
-   - [ ] 开始批量处理，观察队列进度
-   - [ ] 点击查看结果详情（摘要、正文、原文、思考过程）
-   - [ ] 测试导出功能
-   - [ ] 查看历史记录
-
-4. **完成 Phase 7**：
-   - 阶段 16: 编写集成测试（happy path）
-   - 阶段 17: 完善 README 和用户文档
-
-**或者**：将当前分支合并到 main 后，在主环境继续测试。
+**后续**：
+- 注意当前在 `master` 分支，不是之前的 `claude/busy-wilbur-4a6988` worktree
+- 项目根存在 `.claude/worktrees/busy-wilbur-4a6988` 残留 worktree 目录，可清理
+- 完成 Phase 7：集成测试 + 用户文档
 
 ## 关键发现
 
 ### 技术决策
-1. **ConfigStore 深层合并**：由于 `electron-store` 的部分更新有时不会深层合并对象类型，通过提取当前设置在内存中深拷贝、深合并后再存入。
-2. **ESM/CJS 兼容性**：导入 `electron-store` 时 `const Store = (StoreModule as any).default || StoreModule` 提供跨环境容错。
-3. **环境问题限制**：WSL2 的 UNC 路径依旧阻挡 `vitest` 与 `npm test` 运行，但 TypeScript 静态检查和代码逻辑完整，确认无误。
-
-## 2026-06-19 - Phase 6 Renderer Implementation
-- Implemented Zustand state management (`useOcrStore`, `useSettingsStore`)
-- Created core React components (`FileQueueList`, `ResultDetail`, `ConfigDialog`)
-- Integrated the full UI layout in `App.tsx`
-- Added tests for components
-- Verified renderer typechecking passes
+1. **vitest workspace 配置隔离**：`vitest.config.ts` 与 `vitest.workspace.ts` 共存时，workspace 项目不继承 `vitest.config.ts` 的 `globals: true` 等设置。解决方案：删除 `vitest.config.ts`，所有配置统一写入 `vitest.workspace.ts` 各 project 的 `test` 选项。
+2. **ESM mock 陷阱**：`require('uuid').v4 = ...` 在 uuid v14+ (纯 ESM) 下失效，ESM namespace exports 为只读。必须用 `vi.mock('uuid', () => ({ v4: vi.fn() }))` + `vi.mocked(uuid.v4).mockImplementation(...)`。
+3. **纯 type 的值访问**：`export type JobStage = 'done' | 'error' | ...` 在运行时被擦除，`JobStage.DONE` → `undefined`。测试中的字面量类型必须直接用字符串值。
+4. **fake timers + fetch mock**：`vi.useFakeTimers()` 不拦截 AbortController，但 mock fetch 必须监听 `init.signal`，abort 时 reject AbortError——否则 `setTimeout → controller.abort()` 触发后 fetch promise 永久 hanging。

@@ -1,6 +1,7 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { ConfigStore, configStore } from '../store'
 import { DEFAULT_SETTINGS } from '../../shared/types'
+import electronStore from 'electron-store'
 
 // Mock electron-store
 vi.mock('electron-store', () => {
@@ -30,11 +31,11 @@ describe('ConfigStore', () => {
 
   describe('constructor', () => {
     it('should initialize with default options', () => {
-      const Store = require('electron-store').default;
+      const Store = electronStore as any;
       Store.mockClear();
-      
+
       const newStore = new ConfigStore();
-      
+
       expect(Store).toHaveBeenCalledWith(expect.objectContaining({
         name: 'ocr-app-config',
         encryptionKey: 'ocr-app-secret-key'
@@ -42,11 +43,11 @@ describe('ConfigStore', () => {
     });
 
     it('should initialize with provided encryption key', () => {
-      const Store = require('electron-store').default;
+      const Store = electronStore as any;
       Store.mockClear();
-      
+
       const newStore = new ConfigStore({ encryptionKey: 'custom-key' });
-      
+
       expect(Store).toHaveBeenCalledWith(expect.objectContaining({
         encryptionKey: 'custom-key'
       }));

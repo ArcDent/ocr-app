@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import '@testing-library/jest-dom'
+import { vi } from 'vitest'
 import { FileQueueList } from '../../components/FileQueueList'
 import { OcrJob } from '../../../../shared/types'
 
@@ -10,11 +11,11 @@ describe('FileQueueList', () => {
     { jobId: '3', fileName: 'test3.pdf', filePath: '/test3.pdf', stage: 'done' }
   ]
 
-  const mockOnSelectJob = jest.fn()
-  const mockOnClear = jest.fn()
+  const mockOnSelectJob = vi.fn()
+  const mockOnClear = vi.fn()
 
   beforeEach(() => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
   })
 
   it('renders empty state when no jobs', () => {

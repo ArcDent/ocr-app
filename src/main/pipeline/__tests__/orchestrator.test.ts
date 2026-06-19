@@ -2,11 +2,12 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { Orchestrator } from '../orchestrator'
 import { TextInClient } from '../../ocr/textin-client'
 import { LlmClient } from '../../llm/llm-client'
+import * as uuid from 'uuid'
 
 vi.mock('../../ocr/textin-client')
 vi.mock('../../llm/llm-client')
 vi.mock('uuid', () => ({
-  v4: () => 'mock-uuid-1234'
+  v4: vi.fn(() => 'mock-uuid-1234')
 }))
 vi.mock('../../llm/chunking', () => ({
   splitIntoChunks: (text: string, _threshold: number) => [text.substring(0, text.length/2), text.substring(text.length/2)]
@@ -22,7 +23,9 @@ describe('Orchestrator', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    
+    // Reset uuid.v4 to default implementation after clearAllMocks
+    vi.mocked(uuid.v4).mockReturnValue('mock-uuid-1234')
+
     mockTextIn = new TextInClient({ appId: 'appId', secretCode: 'secret', baseUrl: 'http://api' }) as any
     mockLlm = new LlmClient({ baseUrl: 'http://api', apiKey: 'key', model: 'model' }) as any
     
@@ -59,9 +62,8 @@ describe('Orchestrator', () => {
   it('should isolate failures', async () => {
     const onProgress = vi.fn()
     let uuidCounter = 0
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    require('uuid').v4 = () => `mock-uuid-${++uuidCounter}`
-    
+    vi.mocked(uuid.v4).mockImplementation(() => `mock-uuid-${++uuidCounter}`)
+
     mockTextIn.recognizeFile
       .mockRejectedValueOnce(new Error('Fatal error'))
       .mockResolvedValueOnce('success text')
@@ -135,9 +137,8 @@ describe('Orchestrator', () => {
   it('should enforce concurrency limits', async () => {
     const onProgress = vi.fn()
     let uuidCounter = 0
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    require('uuid').v4 = () => `mock-uuid-${++uuidCounter}`
-    
+    vi.mocked(uuid.v4).mockImplementation(() => `mock-uuid-${++uuidCounter}`)
+
     let activeTasks = 0
     let maxTasks = 0
     mockTextIn.recognizeFile.mockImplementation(() => {

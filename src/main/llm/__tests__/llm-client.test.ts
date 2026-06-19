@@ -12,6 +12,21 @@ describe('LlmClient', () => {
 
   let client: LlmClient
 
+  // Mock fetch that never resolves but rejects on AbortSignal
+  const mockFetchHanging = (_url: any, init?: RequestInit) => {
+    const p = new Promise<Response>((_resolve, reject) => {
+      if (init?.signal) {
+        if (init.signal.aborted) {
+          const e = new Error('Aborted'); e.name = 'AbortError'; reject(e); return
+        }
+        init.signal.addEventListener('abort', () => {
+          const e = new Error('Aborted'); e.name = 'AbortError'; reject(e)
+        })
+      }
+    })
+    return p
+  }
+
   beforeEach(() => {
     vi.clearAllMocks()
     client = new LlmClient(mockConfig)
@@ -215,24 +230,12 @@ describe('LlmClient', () => {
     it('should throw timeout error after 120 seconds', async () => {
       vi.useFakeTimers()
 
-      vi.mocked(fetch).mockImplementation(
-        () =>
-          new Promise((resolve) => {
-            setTimeout(
-              () =>
-                resolve({
-                  ok: true,
-                  status: 200,
-                  json: async () => ({
-                    choices: [{ message: { content: 'response' } }],
-                  }),
-                } as Response),
-              130000
-            )
-          })
+      vi.mocked(fetch).mockImplementation((url, init) =>
+        mockFetchHanging(url, init)
       )
 
       const promise = client.callLlm(testMessages)
+      promise.catch(() => {}) // mark handled to avoid unhandled rejection race
 
       await vi.advanceTimersByTimeAsync(120000)
 
@@ -246,24 +249,12 @@ describe('LlmClient', () => {
 
       const customClient = new LlmClient(mockConfig, { timeout: 30000 })
 
-      vi.mocked(fetch).mockImplementation(
-        () =>
-          new Promise((resolve) => {
-            setTimeout(
-              () =>
-                resolve({
-                  ok: true,
-                  status: 200,
-                  json: async () => ({
-                    choices: [{ message: { content: 'response' } }],
-                  }),
-                } as Response),
-              40000
-            )
-          })
+      vi.mocked(fetch).mockImplementation((url, init) =>
+        mockFetchHanging(url, init)
       )
 
       const promise = customClient.callLlm(testMessages)
+      promise.catch(() => {}) // mark handled to avoid unhandled rejection race
 
       await vi.advanceTimersByTimeAsync(30000)
 

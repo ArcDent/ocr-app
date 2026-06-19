@@ -152,7 +152,7 @@ describe('Type Interfaces', () => {
 
 describe('IPC Type Maps', () => {
   it('should have type-safe IpcRequest mapping', () => {
-    const getSettings: IpcRequest['settings:get'] = {} as unknown as void
+    const getSettings: IpcRequest['settings:get'] = undefined as unknown as void
     const setSettings: IpcRequest['settings:set'] = { textin: { appId: '', secretCode: '', baseUrl: '' }, llm: { baseUrl: '', apiKey: '', model: '' }, concurrency: 3, chunkThreshold: 12000 }
     
     expect(getSettings).toBeUndefined()

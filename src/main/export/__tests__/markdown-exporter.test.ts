@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { promises as fs } from 'fs'
 import * as path from 'path'
 import { exportBatch } from '../markdown-exporter'
-import { JobResult, JobStage, ProcessMode } from '../../../shared/types'
+import type { JobResult } from '../../../shared/types'
 
 // Mock fs module
 vi.mock('fs', () => {
@@ -40,11 +40,11 @@ describe('markdown-exporter', () => {
     fileName: name || `test-${id}.pdf`,
     fileSize: 1024,
     status: 'completed',
-    stage: JobStage.DONE,
+    stage: 'done',
     progress: 100,
     createdAt: Date.now(),
     updatedAt: Date.now(),
-    mode: ProcessMode.FAST,
+    mode: 'faithful',
     content: `Structured content for ${id}`,
     summary: `Summary for ${id}`
   })
@@ -210,8 +210,8 @@ describe('markdown-exporter', () => {
     expect(result).toEqual({ success: 2, failed: 1 })
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to export result 2'), expect.any(Error))
 
-    // 2 success files + 1 index.md
-    expect(fs.writeFile).toHaveBeenCalledTimes(3)
+    // 2 success files + 1 failed attempt + 1 index.md
+    expect(fs.writeFile).toHaveBeenCalledTimes(4)
 
     consoleSpy.mockRestore()
   })

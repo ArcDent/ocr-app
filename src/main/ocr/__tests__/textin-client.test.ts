@@ -15,6 +15,21 @@ describe('TextInClient', () => {
 
   let client: TextInClient
 
+  // Mock fetch that never resolves but rejects on AbortSignal
+  const mockFetchHanging = (_url: any, init?: RequestInit) => {
+    const p = new Promise<Response>((_resolve, reject) => {
+      if (init?.signal) {
+        if (init.signal.aborted) {
+          const e = new Error('Aborted'); e.name = 'AbortError'; reject(e); return
+        }
+        init.signal.addEventListener('abort', () => {
+          const e = new Error('Aborted'); e.name = 'AbortError'; reject(e)
+        })
+      }
+    })
+    return p
+  }
+
   beforeEach(() => {
     vi.clearAllMocks()
     client = new TextInClient(mockConfig)
@@ -257,25 +272,12 @@ describe('TextInClient', () => {
     it('should throw timeout error after 60 seconds', async () => {
       vi.useFakeTimers()
 
-      vi.mocked(fetch).mockImplementation(
-        () =>
-          new Promise((resolve) => {
-            setTimeout(
-              () =>
-                resolve({
-                  ok: true,
-                  status: 200,
-                  json: async () => ({
-                    code: 200,
-                    result: { pages: [] },
-                  }),
-                } as Response),
-              70000
-            )
-          })
+      vi.mocked(fetch).mockImplementation((url, init) =>
+        mockFetchHanging(url, init)
       )
 
       const promise = client.recognizeFile(testFilePath)
+      promise.catch(() => {}) // mark handled to avoid unhandled rejection race
 
       // Fast-forward past the 60s timeout
       await vi.advanceTimersByTimeAsync(60000)
@@ -292,25 +294,12 @@ describe('TextInClient', () => {
         recognizeTimeout: 30000,
       })
 
-      vi.mocked(fetch).mockImplementation(
-        () =>
-          new Promise((resolve) => {
-            setTimeout(
-              () =>
-                resolve({
-                  ok: true,
-                  status: 200,
-                  json: async () => ({
-                    code: 200,
-                    result: { pages: [] },
-                  }),
-                } as Response),
-              40000
-            )
-          })
+      vi.mocked(fetch).mockImplementation((url, init) =>
+        mockFetchHanging(url, init)
       )
 
       const promise = customClient.recognizeFile(testFilePath)
+      promise.catch(() => {}) // mark handled to avoid unhandled rejection race
 
       await vi.advanceTimersByTimeAsync(30000)
 
@@ -419,17 +408,8 @@ describe('TextInClient', () => {
     it('should return failure for timeout', async () => {
       vi.useFakeTimers()
 
-      vi.mocked(fetch).mockImplementation(
-        () =>
-          new Promise((resolve) => {
-            setTimeout(
-              () =>
-                resolve({
-                  status: 200,
-                } as Response),
-              15000
-            )
-          })
+      vi.mocked(fetch).mockImplementation((url, init) =>
+        mockFetchHanging(url, init)
       )
 
       const promise = client.testConnection()
@@ -453,17 +433,8 @@ describe('TextInClient', () => {
         testTimeout: 5000,
       })
 
-      vi.mocked(fetch).mockImplementation(
-        () =>
-          new Promise((resolve) => {
-            setTimeout(
-              () =>
-                resolve({
-                  status: 200,
-                } as Response),
-              10000
-            )
-          })
+      vi.mocked(fetch).mockImplementation((url, init) =>
+        mockFetchHanging(url, init)
       )
 
       const promise = customClient.testConnection()
