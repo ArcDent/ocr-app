@@ -1,0 +1,28 @@
+appId: com.arcdent.ocrapp
+productName: OCR App
+directories:
+  output: dist
+files:
+  - out/**/*
+  - package.json
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!docs/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintignore,.eslintrc.json,.prettierrc,.gitignore}'
+  - '!{tsconfig.json,tsconfig.node.json,vitest.workspace.ts}'
+  - '!**/__tests__/**'
+  - '!**/*.test.{ts,tsx}'
+  - '!{tailwind.config.js,postcss.config.js,electron-builder.yml,forge.config.js}'
+  - '!{AGENTS.md,README.md,.probe-uuid.cjs}'
+asarUnpack:
+  - resources/**
+win:
+  executableName: ocr-app
+  icon: resources/icon.ico
+  target:
+    - target: portable
+      arch:
+        - x64
+portable:
+  artifactName: ${productName}-${version}-portable.${ext}

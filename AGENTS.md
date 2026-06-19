@@ -4,7 +4,7 @@
 
 - **类型**：Electron 桌面应用
 - **目标**：OCR 文字识别 + LLM 结构化处理 + 批量导出
-- **技术栈**：Electron 28, TypeScript 5.9, React 18, Zustand, Tailwind CSS, Vitest
+- **技术栈**：Electron 28, TypeScript 5.9, React 18, Zustand, Tailwind CSS, Vitest, electron-vite, electron-builder
 
 ## 项目静态结构
 
@@ -20,116 +20,53 @@ src/
 ├── preload/                # Preload 脚本
 ├── renderer/               # 渲染进程
 └── shared/                 # 共享类型
+.claude/CLAUDE.md           # 项目级规则与已知坑点
+electron-builder.yml        # electron-builder 配置文件（代替 forge.config.js）
+tailwind.config.js          # Tailwind CSS 配置文件
+postcss.config.js           # PostCSS 配置文件
+out/                        # electron-vite 构建产物（gitignore）
+dist/                       # electron-builder 打包产物（gitignore）
 ```
 
 ## 最近操作
 
-- **2026-06-20**: Electron portable exe 构建配置（全部完成）
-  - **技术方案**: electron-forge v7 + @electron-forge/maker-squirrel (Squirrel.Windows)
-  - **配置文件**:
-    - `forge.config.js`: packager + maker + plugin 配置
-    - `package.json`: 添加 productName、config.forge、make/package 脚本、3 个 devDependencies
-    - `resources/`: 图标目录（临时使用 Electron 默认图标）
-  - **构建命令**: `npm run make` → 生成 `dist/make/squirrel.windows/x64/OCR-App-Setup.exe`
-  - **已知限制**: WSL UNC 路径（\\wsl.localhost\...）无法运行 npm install，需在 Windows 原生环境或 WSL 原生路径执行
-  - **图标设计**: 已选定琥珀蜂蜜主题（橙黄渐变 + 白色"文"字），待实际生成 .ico 文件
-  - **当前状态**: 配置完整，文档齐全，可在 Windows 环境执行构建
+- **2026-06-20**: 迁移打包工具至 electron-builder 并修复 Tailwind 编译与图标问题
+  - **打包迁移**: 彻底删除 `forge.config.js` 及其在 `package.json` 中的依赖，引入 `electron-builder`。配置 `electron-builder.yml` 输出 `portable` Windows 单文件 exe，打包产物路径变更为 `dist/OCR App-0.1.0-portable.exe`。
+  - **Tailwind 样式修复**: 新建 `tailwind.config.js` 和 `postcss.config.js` 于项目根目录，引入 `tailwindcss` 和 `autoprefixer` 插件，打通 Vite 构建 CSS 的 PostCSS 管道，解决打包后前端由于未编译 `@tailwind` 指令导致样式完全丢失的 bug。
+  - **图标升级**: 生成多尺寸（256/128/64/48/32/16）ICO 格式的 `resources/icon.ico`，替换低分辨率占位图标，满足 electron-builder 构建必须提供至少 256x256 图标的硬性要求。
+  - **配置同步**: 将以上改动和新建配置文件（`.claude/CLAUDE.md`, `electron-builder.yml`, `tailwind.config.js`, `postcss.config.js`, `.gitignore`）同步到 Windows 本地路径 `C:\Users\yanga\Projects\ocr-app\`，实现 WSL 源码和 Windows 构建端一致性。
+
+- **2026-06-20**: 中文化 README.md 并创建项目级 `.claude/CLAUDE.md`
+  - **README.md**: 全文改为中文，更新构建与运行说明，使用新的 electron-builder 命令。
+  - **`.claude/CLAUDE.md`**: 记录 8 个项目已知坑点（包括 out/ 目录冲突、双端同步、UNC 路径 npm install 限制、ESM/CJS 兼容性等）和命令表。
 
 - **2026-06-20**: 前端主题重构为温暖色系（全部完成）
-  - **设计方案**：从蓝色系重构为琥珀蜂蜜主题（amber-honey），保持功能完整性
-  - **配色映射**：
-    - 主按钮：`from-blue-600 to-indigo-600` → `from-amber-500 to-orange-500`
-    - 选中态背景：`from-blue-100 to-indigo-100` → `from-amber-100 to-orange-100`
-    - 页面背景：`from-slate-50 via-blue-50 to-indigo-50` → `from-amber-50 via-orange-50 to-yellow-50`
-    - 主阴影光晕：`shadow-lg` → `shadow-lg shadow-amber-500/20`
-  - **修改文件**：
-    - `App.tsx`: 页面背景、Header logo、副标题、设置按钮、主按钮、模式切换、文件选择按钮、底部操作栏
-    - `FileQueueList.tsx`: 队列标题栏、选中项、进度条、加载图标
-    - `ResultDetail.tsx`: 标题栏、模式标签、标签页、AI 推理按钮
-    - `ConfigDialog.tsx`: Header/Footer 背景、测试按钮、保存按钮、输入框 focus 边框、章节装饰条
-  - **保留功能色**：绿色（emerald）表示成功，红色（red）表示错误，均保持不变
-  - **当前状态**：所有视觉元素已迁移至温暖色系，无遗漏蓝色，功能完整
+  - **设计方案**：从蓝色系重构为琥珀蜂蜜主题（amber-honey），保持功能完整性。
+  - **修改文件**：`App.tsx`, `FileQueueList.tsx`, `ResultDetail.tsx`, `ConfigDialog.tsx`。
 
 - **2026-06-20**: 前端美化与功能修复（全部完成）
-  - **中文化界面**：所有按钮、标签、提示文本改为中文（App.tsx、FileQueueList、ResultDetail、ConfigDialog）
-  - **修复导出路径问题**：新增 `DIALOG_PICK_EXPORT_DIR` IPC 通道，导出前弹出目录选择对话框（ipc-handlers.ts line 149-160）
-  - **清理 LLM 输出注释**：`llm-client.ts` 的 `extractResult()` 方法增加 `content.replace(/<!--[\s\S]*?-->/g, '')` 移除 XML 注释（line 120-127）
-  - **美化界面设计**：
-    - 渐变背景（slate-50 → blue-50 → indigo-50）、卡片圆角（rounded-2xl）、阴影层次、backdrop-blur 毛玻璃效果
-    - 按钮渐变配色（from-blue-600 to-indigo-600）、hover 态动画（transition-all duration-200）
-    - 队列项选中态（border-l-4 border-blue-600 + 渐变背景）、进度条渐变色
-    - 标签页粗体字体（font-bold）、边框加粗（border-b-4）
-    - 复制按钮反馈（2 秒变绿 bg-emerald-500）
-  - **类型修复**：
-    - `shared/types.ts` IPC_CHANNELS 新增 `DIALOG_PICK_EXPORT_DIR: 'dialog:pick-export-dir'`（line 17）
-    - IpcRequest/IpcResponse 新增对应类型（line 121、138）
-    - `useSettingsStore.ts` 新增 `saveSettings` 方法（替换完整 settings 而非 merge）
-  - **测试修复**：更新 FileQueueList 和 ResultDetail 测试用例，匹配中文文本（"暂无文件"、"任务队列"、"清空"、"待处理"、"选择已完成的文件查看结果"、"增强摘要"、"⚠️ 注意"、"摘要"、"原始 OCR"、"查看 AI 推理过程"）
-  - **当前状态**：所有 230 个测试通过，npm run dev 成功启动，界面完整中文化，导出功能正常
-
-- **2026-06-20**: 完成 IPC 集成与类型对齐（Task 1-15 全部完成）
-  - **类型契约层（Task 1-7）**：`shared/types.ts` 补 HistoryItem；重写 `history-manager.ts` 用 shared JobResult/HistoryItem + 五份落盘 + 100 条淘汰 + getJob 数据损坏返回 null，删 `history/types.ts`；重写 `markdown-exporter.ts` 用 spec 字段 structuredText/summary；修 `orchestrator.ts` 的 `assertNoPlaceholder().clean` 调用 + 新增 `getJobs()`；三模块测试改 spec 字段
-  - **接线层（Task 8-14）**：新建 `ipc-handlers.ts`（12 通道 + 批量后遍历 getJobs 存 done 项到 history + 配置缺失 throw + OCR_GET_RESULT 内存优先 + EXPORT_BATCH 从历史取）；`index.ts` 注册；`useOcrStore` 去 temp ID 改 pendingFiles；`FileQueueList` 扩展 pendingFiles props（不可选中）；`App.tsx` 接线
-  - **dev 验证阻塞修复**：uuid v14 纯 ESM 与 CJS 主进程不兼容（`ERR_REQUIRE_ESM`），改用 `crypto.randomUUID()`（Node 16.7+ 内置，Electron 28 支持），去掉 uuid 依赖
-  - **当前状态**：230 passed / 0 failed（14 test files）；`npm run dev` 主进程启动成功，IPC 注册生效，不再报 `No handler registered for 'settings:get'`；WSL2 无 GPU 环境的 GPU/网络服务错误属环境限制，非逻辑问题
-  - **已知遗留**：`App.tsx` `exportBatch('')` 传空 outputDir（导出会 mkdir 失败，需后续加目录选择 IPC）；`store.test.ts` 2 个 newStore 未用 + uuid Uint8Array tsc 噪音（运行时无影响）；worktree 残留待清理
-
-- **2026-06-20**: Task 9 完成 — 新建 `src/main/__tests__/ipc-handlers.test.ts`（26 tests）
-  - Mock 策略：顶层 `vi.mock` + `vi.hoisted`（解决 `mockHandle`/`mockSend`/`historyInstance` 在 hoisted 工厂中引用的 TDZ 问题）
-  - HistoryManager mock 用单例对象（`vi.fn(() => historyInstance)`）绕过 `registerIpcHandlers` 内 `if (!historyManager)` 守卫；`beforeEach` 重置单例方法实现
-  - Orchestrator / TextInClient / LlmClient mock 用 `vi.mocked().mockImplementation` 按测试配置
-  - 覆盖 8 个通道关键行为：SETTINGS_GET/SET、TEST_OCR/LLM（缺键 + 成功 + throw）、OCR_START_BATCH（配置缺失 throw、批量后存 done 项到 saveResult、send ON_BATCH_DONE、全 error 不存、rejection 传播）、OCR_GET_RESULT（内存/历史/null）、EXPORT_BATCH（无结果/有结果/过滤 null/throw/0 success）、HISTORY_LIST/GET/CLEAR、OCR_CANCEL
-  - 当前状态：220 passed / 0 failed（13 test files，WSL 终端验证）
-
-- **2026-06-19**: 系统性修复测试基础设施（第三轮修正）
-  - **orchestrator.test.ts**：`beforeEach` 加 `vi.mocked(uuid.v4).mockReturnValue('mock-uuid-1234')`，解决 `clearAllMocks` 后上一测试的 `mockImplementation` 覆盖残留导致后续测试 `uuidv4()` 返回错误值、`getResult('mock-uuid-1234')` 找不到（3 个失败）
-  - **llm-client / textin-client 4 个超时测试**：unhandled rejection 根因是 fake timers 时序竞争——`advanceTimersByTimeAsync` 触发 abort → 源码 throw timeout → callLlm promise reject，但此时测试尚未 await 该 promise，微任务窗内 unhandled。修复：`const promise = ...; promise.catch(() => {})` 预标记 handled，原 promise 引用保留给 `expect(promise).rejects.toThrow(...)`。`mockFetchHanging` 简化回 `return p`
-  - **当前状态**：191 passed / 0 failed，4 个 unhandled rejection 已修复，需在 WSL 终端验证
-
-- **2026-06-19**: 系统性修复测试基础设施（第二轮修正）
-  - **store.test.ts**：`import electronStore` 在 vitest 下 default export 直解，`(electronStore as any).default` → `electronStore as any`
-  - **orchestrator.test.ts**：`vi.mock('uuid', { v4: () => '...' })` 工厂返回普通函数 → `vi.fn(() => '...')`，使 `vi.mocked().mockImplementation()` 可用
-  - **markdown-exporter.test.ts**：预存断言 bug `toHaveBeenCalledTimes(3)` → `4`（3 个文件 write 尝试 + 1 次 index.md）
-  - **llm-client / textin-client timeout 测试**：`mockFetchHanging` 加 `p.catch(() => {})` 抑制 unhandled rejection 警告
-  - **当前状态**：5 failed + 4 errors → 预期 0+0，需在 WSL 原生终端验证 `npm test -- --run`
-
-- **2026-06-19**: 系统性修复测试基础设施（第一轮）
-
-- **2026-06-19**: 完成 Phase 6 (Renderer 层)
-  - 阶段 13: Zustand 状态管理（useOcrStore、useSettingsStore）
-  - 阶段 14: 核心组件（FileQueueList、ResultDetail、ConfigDialog）
-  - 阶段 15: 主界面集成（App.tsx 完整布局）
-
-- **2026-06-19**: 完成 Phase 5 (IPC 与 Preload)
-  - 阶段 11: IPC Handlers（Main 进程实现所有 IPC 通道，连接业务逻辑）
-  - 阶段 12: Preload API（contextBridge 暴露类型安全 API）
+  - **中文化界面**：所有按钮、标签、提示文本改为中文。
+  - **修复导出路径问题**：新增 `DIALOG_PICK_EXPORT_DIR` IPC 通道，导出前弹出目录选择对话框。
+  - **清理 LLM 输出注释**：`llm-client.ts` 过滤 `<!-- ... -->` XML 注释。
 
 ## 进行中
 
-所有计划任务已完成。当前版本功能完整，界面已中文化并迁移至温暖色系主题，导出功能正常。
+无。迁移 electron-builder、Tailwind 样式修复、多尺寸图标生成及双端同步已全部完成。
 
 ## 下一步
 
 **立即**：
-1. 在 Windows 原生环境执行 `npm install` 安装 electron-forge 依赖
-2. 执行 `npm run make` 构建 portable exe 并测试
-3. （可选）制作正式图标：256x256 PNG，琥珀到黄色渐变背景，白色"文"字，转换为 .ico 多尺寸格式
+1. 运行 `dist/OCR App-0.1.0-portable.exe` 验证单文件自解压运行、主题样式是否正常。
+2. 进行 happy path 流程测试。
 
 **后续**：
-- 真实 API 联调：配置真实 TextIn + LLM 凭证，跑通全链路
-- Phase 7：集成测试（happy path）+ 用户文档
-- 清理 `store.test.ts` 的 newStore 未用变量
+- 真实 API 联调：配置真实 TextIn + LLM 凭证，跑通全链路。
+- 完善单元测试与集成测试。
 
 ## 关键发现
 
 ### 技术决策
-1. **vitest workspace 配置隔离**：`vitest.config.ts` 与 `vitest.workspace.ts` 共存时，workspace 项目不继承 `vitest.config.ts` 的 `globals: true` 等设置。解决方案：删除 `vitest.config.ts`，所有配置统一写入 `vitest.workspace.ts` 各 project 的 `test` 选项。
-2. **ESM mock 陷阱**：`require('uuid').v4 = ...` 在 uuid v14+ (纯 ESM) 下失效，ESM namespace exports 为只读。必须用 `vi.mock('uuid', () => ({ v4: vi.fn() }))` + `vi.mocked(uuid.v4).mockImplementation(...)`。
-3. **纯 type 的值访问**：`export type JobStage = 'done' | 'error' | ...` 在运行时被擦除，`JobStage.DONE` → `undefined`。测试中的字面量类型必须直接用字符串值。
-4. **fake timers + fetch mock**：`vi.useFakeTimers()` 不拦截 AbortController，但 mock fetch 必须监听 `init.signal`，abort 时 reject AbortError——否则 `setTimeout → controller.abort()` 触发后 fetch promise 永久 hanging。
-5. **vi.mock hoisting + 共享 mock 对象**：`vi.mock` 工厂被 hoist 到文件顶部，工厂内不能引用未初始化的 `const`/`let`（TDZ）。共享 mock 对象（如 `mockHandle`、`historyInstance`）需用 `vi.hoisted(() => ({ ... }))` 声明，使其在 hoisted 工厂执行前可用。
-6. **单例守卫绕过**：`registerIpcHandlers` 内 `if (!historyManager) historyManager = new HistoryManager(...)` 守卫使重复调用不重建实例。测试若需重置 mock 实现，不能靠重 `new`，应让 mock 工厂返回固定单例对象，`beforeEach` 重置单例方法。
-7. **uuid v14 纯 ESM 与 CJS 主进程不兼容**：`electron-vite` 把 main 进程打成 CJS（package.json type: commonjs），`import { v4 } from 'uuid'` 编译成 `require('uuid')`，uuid v14 是纯 ESM (`"type": "module"`) 触发 `ERR_REQUIRE_ESM` 崩溃。解决：改用 Node 内置 `crypto.randomUUID()`（16.7+，Electron 28 的 Node 18 支持），去掉 uuid 依赖。测试 mock 改 `vi.mock('crypto', () => ({ randomUUID: vi.fn() }))`。
-8. **Windows 端 npm 不可靠**：WSL2 项目通过 UNC 路径 `\\wsl.localhost\...` 访问时，Windows 端 npm install 会因 `.bin` 符号链接是目录而 `EISDIR` 崩溃，可能损坏 node_modules。npm/install 操作必须在 WSL 原生终端（Linux 路径）跑。
-9. **LLM 输出清理**：LLM 返回的 `<result>` 标签内可能包含 XML 注释 `<!-- ... -->`，需在 `extractResult()` 中用正则 `/<!--[\s\S]*?-->/g` 移除，避免结构化内容混入 LLM 元数据。
-10. **Electron 目录选择对话框**：`dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] })` 可让用户选择或创建导出目录，返回 `{ canceled: boolean, filePaths: string[] }`，取消时返回空数组。
+1. **electron-builder 迁移**: 比起 forge-squirrel，`electron-builder` 的 `portable` 目标生成单文件自解压可执行程序，体积更小，更加便携。且其打包时通过 `dist/` 与 electron-vite 的 `out/` 输出隔离，完美避开了 entry point 找不到的排除机制冲突。
+2. **Tailwind PostCSS 管道**: vite 默认只在根目录发现 `postcss.config.js` 时才会运行 postcss 插件。若缺失这两个配置，CSS 打包只有原样 `@tailwind`，导致样式完全失效。补全后 output 的渲染 CSS 大小正常（约 30KB+）。
+3. **多尺寸图标构建限制**: Windows 平台打包要求 `win.icon` 必须包含 256x256px 资源，否则报错 `Icon must be at least 256x256 pixels`。通过 headless Chrome 从 `icon.svg` 截图并用脚本封包为包含 16-256px 多尺寸 ICO。
+4. **uuid v14 与 CJS 兼容陷阱**: `uuid` 在 v14 升级为纯 ESM 无法在 electron-vite 打包出的 CJS 主进程中通过 `require` 引入。决定弃用该依赖，直接使用 Node.js 自带的 `crypto.randomUUID()`（Electron 28 支持），保持测试的 mock 对应。

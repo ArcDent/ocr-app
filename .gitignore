@@ -14,3 +14,7 @@ coverage/
 # Keep resources directory but ignore large assets temporarily
 resources/*.ico
 !resources/.gitkeep
+
+# Claude Code internal files
+.claude/*
+!.claude/CLAUDE.md
