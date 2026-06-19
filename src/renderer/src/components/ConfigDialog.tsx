@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react'
-import { X, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { X, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { useSettingsStore } from '../stores/useSettingsStore'
-import { AppSettings } from '../../../shared/types'
 
 interface ConfigDialogProps {
   isOpen: boolean
@@ -9,305 +8,294 @@ interface ConfigDialogProps {
 }
 
 export function ConfigDialog({ isOpen, onClose }: ConfigDialogProps) {
-  const { settings, updateSettings, testOcrConnection, testLlmConnection, isLoading } = useSettingsStore()
-  const [activeTab, setActiveTab] = useState<'textin' | 'llm' | 'advanced'>('textin')
-  const [formData, setFormData] = useState<AppSettings>(settings)
-  const [testStatus, setTestStatus] = useState<{
-    type: 'ocr' | 'llm' | null
-    status: 'idle' | 'testing' | 'success' | 'error'
-    message: string
-  }>({ type: null, status: 'idle', message: '' })
+  const { settings, saveSettings, testOcrConnection, testLlmConnection } = useSettingsStore()
+  const [localSettings, setLocalSettings] = useState(settings)
+  const [ocrTestResult, setOcrTestResult] = useState<{ success: boolean; message: string } | null>(null)
+  const [llmTestResult, setLlmTestResult] = useState<{ success: boolean; message: string } | null>(null)
+  const [isTesting, setIsTesting] = useState(false)
 
-  // Sync form data with store when settings load/change
   useEffect(() => {
     if (isOpen) {
-      setFormData(settings)
-      setTestStatus({ type: null, status: 'idle', message: '' })
+      setLocalSettings(settings)
+      setOcrTestResult(null)
+      setLlmTestResult(null)
     }
   }, [isOpen, settings])
 
   if (!isOpen) return null
 
   const handleSave = async () => {
-    await updateSettings(formData)
+    await saveSettings(localSettings)
     onClose()
   }
 
-  const handleTestConnection = async (type: 'ocr' | 'llm') => {
-    // First save the current form data so the backend uses the latest keys
-    await updateSettings(formData)
+  const handleTestOcr = async () => {
+    setIsTesting(true)
+    setOcrTestResult(null)
+    const result = await testOcrConnection()
+    setOcrTestResult(result)
+    setIsTesting(false)
+  }
 
-    setTestStatus({ type, status: 'testing', message: 'Testing connection...' })
-
-    try {
-      const result = type === 'ocr'
-        ? await testOcrConnection()
-        : await testLlmConnection()
-
-      setTestStatus({
-        type,
-        status: result.success ? 'success' : 'error',
-        message: result.message
-      })
-    } catch (err) {
-      setTestStatus({
-        type,
-        status: 'error',
-        message: (err as Error).message || 'Connection failed'
-      })
-    }
+  const handleTestLlm = async () => {
+    setIsTesting(true)
+    setLlmTestResult(null)
+    const result = await testLlmConnection()
+    setLlmTestResult(result)
+    setIsTesting(false)
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]">
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-800">Settings</h2>
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="px-6 py-5 border-b border-slate-200 flex justify-between items-center bg-gradient-to-r from-amber-50 to-orange-50">
+          <h2 className="text-2xl font-bold text-slate-800">系统配置</h2>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 p-1 rounded-md hover:bg-gray-100"
+            className="p-2 hover:bg-slate-200 rounded-lg transition-colors text-slate-600"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="flex flex-1 overflow-hidden">
-          {/* Sidebar */}
-          <div className="w-48 border-r border-gray-200 bg-gray-50 p-2">
-            <button
-              onClick={() => setActiveTab('textin')}
-              className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium mb-1 ${
-                activeTab === 'textin' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              TextIn OCR
-            </button>
-            <button
-              onClick={() => setActiveTab('llm')}
-              className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium mb-1 ${
-                activeTab === 'llm' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              LLM API
-            </button>
-            <button
-              onClick={() => setActiveTab('advanced')}
-              className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium ${
-                activeTab === 'advanced' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Advanced
-            </button>
-          </div>
-
-          {/* Content */}
-          <div className="flex-1 p-6 overflow-y-auto">
-            {activeTab === 'textin' && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">TextIn API Configuration</h3>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">App ID</label>
-                  <input
-                    type="text"
-                    value={formData.textin.appId}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      textin: { ...formData.textin, appId: e.target.value }
-                    })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter TextIn App ID"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Secret Code</label>
-                  <input
-                    type="password"
-                    value={formData.textin.secretCode}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      textin: { ...formData.textin, secretCode: e.target.value }
-                    })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter TextIn Secret Code"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Base URL</label>
-                  <input
-                    type="text"
-                    value={formData.textin.baseUrl}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      textin: { ...formData.textin, baseUrl: e.target.value }
-                    })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div className="pt-4 border-t border-gray-200 mt-6">
-                  <button
-                    onClick={() => handleTestConnection('ocr')}
-                    disabled={testStatus.status === 'testing' || !formData.textin.appId || !formData.textin.secretCode}
-                    className="flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none disabled:opacity-50"
-                  >
-                    {testStatus.type === 'ocr' && testStatus.status === 'testing' ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : null}
-                    Test Connection
-                  </button>
-
-                  {testStatus.type === 'ocr' && testStatus.status !== 'idle' && testStatus.status !== 'testing' && (
-                    <div className={`mt-3 p-3 rounded-md text-sm flex items-start gap-2 ${
-                      testStatus.status === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
-                    }`}>
-                      {testStatus.status === 'success' ? (
-                        <CheckCircle className="w-5 h-5 text-green-500 shrink-0" />
-                      ) : (
-                        <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
-                      )}
-                      <span>{testStatus.message}</span>
-                    </div>
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-8">
+          {/* TextIn OCR Config */}
+          <section>
+            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <span className="w-1 h-6 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-full"></span>
+              TextIn OCR 配置
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  App ID
+                </label>
+                <input
+                  type="text"
+                  value={localSettings.textin.appId}
+                  onChange={(e) =>
+                    setLocalSettings({
+                      ...localSettings,
+                      textin: { ...localSettings.textin, appId: e.target.value },
+                    })
+                  }
+                  className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-amber-500 transition-colors"
+                  placeholder="输入 TextIn App ID"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Secret Code
+                </label>
+                <input
+                  type="password"
+                  value={localSettings.textin.secretCode}
+                  onChange={(e) =>
+                    setLocalSettings({
+                      ...localSettings,
+                      textin: { ...localSettings.textin, secretCode: e.target.value },
+                    })
+                  }
+                  className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-amber-500 transition-colors"
+                  placeholder="输入 Secret Code"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Base URL
+                </label>
+                <input
+                  type="text"
+                  value={localSettings.textin.baseUrl}
+                  onChange={(e) =>
+                    setLocalSettings({
+                      ...localSettings,
+                      textin: { ...localSettings.textin, baseUrl: e.target.value },
+                    })
+                  }
+                  className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-amber-500 transition-colors"
+                  placeholder="https://api.textin.com"
+                />
+              </div>
+              <button
+                onClick={handleTestOcr}
+                disabled={isTesting}
+                className="w-full py-2.5 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 text-amber-700 rounded-xl font-semibold hover:from-amber-100 hover:to-orange-100 disabled:opacity-50 transition-all duration-200"
+              >
+                {isTesting ? '测试中...' : '测试 OCR 连接'}
+              </button>
+              {ocrTestResult && (
+                <div
+                  className={`flex items-start gap-3 p-4 rounded-xl ${
+                    ocrTestResult.success
+                      ? 'bg-emerald-50 border-2 border-emerald-300'
+                      : 'bg-red-50 border-2 border-red-300'
+                  }`}
+                >
+                  {ocrTestResult.success ? (
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                   )}
+                  <p className={`text-sm font-medium ${ocrTestResult.success ? 'text-emerald-800' : 'text-red-800'}`}>
+                    {ocrTestResult.message}
+                  </p>
                 </div>
+              )}
+            </div>
+          </section>
+
+          {/* LLM Config */}
+          <section>
+            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <span className="w-1 h-6 bg-gradient-to-b from-purple-500 to-pink-600 rounded-full"></span>
+              LLM 配置
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Base URL
+                </label>
+                <input
+                  type="text"
+                  value={localSettings.llm.baseUrl}
+                  onChange={(e) =>
+                    setLocalSettings({
+                      ...localSettings,
+                      llm: { ...localSettings.llm, baseUrl: e.target.value },
+                    })
+                  }
+                  className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-orange-500 transition-colors"
+                  placeholder="https://api.openai.com/v1"
+                />
               </div>
-            )}
-
-            {activeTab === 'llm' && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">LLM API Configuration</h3>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">API Key</label>
-                  <input
-                    type="password"
-                    value={formData.llm.apiKey}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      llm: { ...formData.llm, apiKey: e.target.value }
-                    })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter OpenAI-compatible API Key"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Base URL</label>
-                  <input
-                    type="text"
-                    value={formData.llm.baseUrl}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      llm: { ...formData.llm, baseUrl: e.target.value }
-                    })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="https://api.openai.com/v1"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Model Name</label>
-                  <input
-                    type="text"
-                    value={formData.llm.model}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      llm: { ...formData.llm, model: e.target.value }
-                    })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g. gpt-4o"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Recommended: model supporting large context window</p>
-                </div>
-
-                <div className="pt-4 border-t border-gray-200 mt-6">
-                  <button
-                    onClick={() => handleTestConnection('llm')}
-                    disabled={testStatus.status === 'testing' || !formData.llm.apiKey}
-                    className="flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none disabled:opacity-50"
-                  >
-                    {testStatus.type === 'llm' && testStatus.status === 'testing' ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : null}
-                    Test Connection
-                  </button>
-
-                  {testStatus.type === 'llm' && testStatus.status !== 'idle' && testStatus.status !== 'testing' && (
-                    <div className={`mt-3 p-3 rounded-md text-sm flex items-start gap-2 ${
-                      testStatus.status === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
-                    }`}>
-                      {testStatus.status === 'success' ? (
-                        <CheckCircle className="w-5 h-5 text-green-500 shrink-0" />
-                      ) : (
-                        <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
-                      )}
-                      <span>{testStatus.message}</span>
-                    </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  API Key
+                </label>
+                <input
+                  type="password"
+                  value={localSettings.llm.apiKey}
+                  onChange={(e) =>
+                    setLocalSettings({
+                      ...localSettings,
+                      llm: { ...localSettings.llm, apiKey: e.target.value },
+                    })
+                  }
+                  className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-orange-500 transition-colors"
+                  placeholder="输入 API Key"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  模型
+                </label>
+                <input
+                  type="text"
+                  value={localSettings.llm.model}
+                  onChange={(e) =>
+                    setLocalSettings({
+                      ...localSettings,
+                      llm: { ...localSettings.llm, model: e.target.value },
+                    })
+                  }
+                  className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-orange-500 transition-colors"
+                  placeholder="gpt-4"
+                />
+              </div>
+              <button
+                onClick={handleTestLlm}
+                disabled={isTesting}
+                className="w-full py-2.5 bg-gradient-to-r from-orange-50 to-yellow-50 border-2 border-orange-300 text-orange-700 rounded-xl font-semibold hover:from-orange-100 hover:to-yellow-100 disabled:opacity-50 transition-all duration-200"
+              >
+                {isTesting ? '测试中...' : '测试 LLM 连接'}
+              </button>
+              {llmTestResult && (
+                <div
+                  className={`flex items-start gap-3 p-4 rounded-xl ${
+                    llmTestResult.success
+                      ? 'bg-emerald-50 border-2 border-emerald-300'
+                      : 'bg-red-50 border-2 border-red-300'
+                  }`}
+                >
+                  {llmTestResult.success ? (
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                   )}
+                  <p className={`text-sm font-medium ${llmTestResult.success ? 'text-emerald-800' : 'text-red-800'}`}>
+                    {llmTestResult.message}
+                  </p>
                 </div>
+              )}
+            </div>
+          </section>
+
+          {/* Processing Config */}
+          <section>
+            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <span className="w-1 h-6 bg-gradient-to-b from-emerald-500 to-teal-600 rounded-full"></span>
+              处理参数
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  并发数量
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="10"
+                  value={localSettings.concurrency}
+                  onChange={(e) =>
+                    setLocalSettings({
+                      ...localSettings,
+                      concurrency: parseInt(e.target.value, 10),
+                    })
+                  }
+                  className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-amber-500 transition-colors"
+                />
+                <p className="text-xs text-slate-500 mt-2">同时处理的文件数量（1-10）</p>
               </div>
-            )}
-
-            {activeTab === 'advanced' && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Advanced Settings</h3>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Concurrency
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="10"
-                    value={formData.concurrency}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      concurrency: parseInt(e.target.value) || 3
-                    })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Number of files to process simultaneously</p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Chunk Threshold (Tokens)
-                  </label>
-                  <input
-                    type="number"
-                    min="1000"
-                    step="1000"
-                    value={formData.chunkThreshold}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      chunkThreshold: parseInt(e.target.value) || 12000
-                    })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Split document if token count exceeds this value</p>
-                </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  分块阈值（字符数）
+                </label>
+                <input
+                  type="number"
+                  min="500"
+                  max="10000"
+                  step="100"
+                  value={localSettings.chunkThreshold}
+                  onChange={(e) =>
+                    setLocalSettings({
+                      ...localSettings,
+                      chunkThreshold: parseInt(e.target.value, 10),
+                    })
+                  }
+                  className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-amber-500 transition-colors"
+                />
+                <p className="text-xs text-slate-500 mt-2">超过此长度的文本将分块处理</p>
               </div>
-            )}
-          </div>
+            </div>
+          </section>
         </div>
 
-        <div className="p-4 border-t border-gray-200 flex justify-end gap-3 bg-gray-50 rounded-b-lg">
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3 bg-gradient-to-r from-amber-50 to-orange-50">
           <button
             onClick={onClose}
-            className="px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
+            className="px-5 py-2.5 border-2 border-slate-300 text-slate-700 rounded-xl font-semibold hover:bg-slate-100 transition-all duration-200"
           >
-            Cancel
+            取消
           </button>
           <button
             onClick={handleSave}
-            disabled={isLoading}
-            className="px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none disabled:opacity-50 flex items-center"
+            className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-semibold hover:from-amber-600 hover:to-orange-600 shadow-lg transition-all duration-200"
           >
-            {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-            Save Settings
+            保存配置
           </button>
         </div>
       </div>
