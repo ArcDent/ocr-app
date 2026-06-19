@@ -1,157 +1,149 @@
-import * as fs from 'fs/promises';
-import * as path from 'path';
-import * as StoreModule from 'electron-store';
-import { HistoryItem, JobResult } from './types';
+import * as fs from 'fs/promises'
+import * as path from 'path'
+import * as StoreModule from 'electron-store'
+import { JobResult, HistoryItem } from '../../shared/types'
 
-// Handle default export properly whether it's ESM or CJS
-const Store = (StoreModule as any).default || StoreModule;
+const Store = (StoreModule as any).default || StoreModule
+
+const MAX_HISTORY_ITEMS = 100
 
 export class HistoryManager {
-  private store: any;
-  private ocrResultsDir: string;
-  private readonly MAX_HISTORY_ITEMS = 100;
+  private store: any
+  private ocrResultsDir: string
 
   constructor(userDataPath: string) {
-    this.ocrResultsDir = path.join(userDataPath, 'ocr-results');
+    this.ocrResultsDir = path.join(userDataPath, 'ocr-results')
     this.store = new Store({
       name: 'ocr-history',
-      defaults: { history: [] }
-    });
-  }
-
-  private async ensureDir(dirPath: string): Promise<void> {
-    try {
-      await fs.access(dirPath);
-    } catch {
-      await fs.mkdir(dirPath, { recursive: true });
-    }
+      defaults: { history: [] },
+    })
   }
 
   async saveResult(result: JobResult): Promise<void> {
-    await this.ensureDir(this.ocrResultsDir);
+    const jobDir = path.join(this.ocrResultsDir, result.jobId)
+    await fs.mkdir(jobDir, { recursive: true })
 
-    const jobDir = path.join(this.ocrResultsDir, result.jobId);
-    await this.ensureDir(jobDir);
-
-    const historyItem: HistoryItem = {
+    const item: HistoryItem = {
       jobId: result.jobId,
-      timestamp: result.timestamp,
       fileName: result.fileName,
-      fileSize: result.fileSize,
-      status: result.status,
-      errorMessage: result.errorMessage,
-      processingTimeMs: result.processingTimeMs,
-      hasRawOutput: !!result.rawOutput,
-      hasStructuredOutput: !!result.structuredOutput,
-      hasSummaryOutput: !!result.summaryOutput,
-      files: {}
-    };
-
-    if (result.rawOutput) {
-      await fs.writeFile(path.join(jobDir, 'raw.txt'), result.rawOutput, 'utf-8');
-      historyItem.files!.raw = 'raw.txt';
-    }
-    
-    if (result.structuredOutput) {
-      await fs.writeFile(path.join(jobDir, 'structured.md'), result.structuredOutput, 'utf-8');
-      historyItem.files!.structured = 'structured.md';
+      mode: result.mode,
+      hasPlaceholderWarning: !!result.hasPlaceholderWarning,
+      createdAt: result.createdAt,
+      rawTextPath: '',
+      structuredTextPath: '',
+      summaryPath: '',
     }
 
-    if (result.summaryOutput) {
-      await fs.writeFile(path.join(jobDir, 'summary.md'), result.summaryOutput, 'utf-8');
-      historyItem.files!.summary = 'summary.md';
+    if (result.rawText) {
+      const p = path.join(jobDir, 'raw.txt')
+      await fs.writeFile(p, result.rawText, 'utf-8')
+      item.rawTextPath = p
     }
-
+    if (result.structuredText) {
+      const p = path.join(jobDir, 'structured.md')
+      await fs.writeFile(p, result.structuredText, 'utf-8')
+      item.structuredTextPath = p
+    }
     if (result.structuredThoughts) {
-      await fs.writeFile(path.join(jobDir, 'structured-thoughts.txt'), result.structuredThoughts, 'utf-8');
-      historyItem.files!.structuredThoughts = 'structured-thoughts.txt';
+      const p = path.join(jobDir, 'structured-thoughts.txt')
+      await fs.writeFile(p, result.structuredThoughts, 'utf-8')
+      item.structuredThoughtsPath = p
     }
-
+    if (result.summary) {
+      const p = path.join(jobDir, 'summary.md')
+      await fs.writeFile(p, result.summary, 'utf-8')
+      item.summaryPath = p
+    }
     if (result.summaryThoughts) {
-      await fs.writeFile(path.join(jobDir, 'summary-thoughts.txt'), result.summaryThoughts, 'utf-8');
-      historyItem.files!.summaryThoughts = 'summary-thoughts.txt';
+      const p = path.join(jobDir, 'summary-thoughts.txt')
+      await fs.writeFile(p, result.summaryThoughts, 'utf-8')
+      item.summaryThoughtsPath = p
     }
 
-    let history: HistoryItem[] = this.store.get('history', []);
-    
-    const existingIndex = history.findIndex(h => h.jobId === result.jobId);
+    let history: HistoryItem[] = this.store.get('history', [])
+    const existingIndex = history.findIndex((h) => h.jobId === result.jobId)
     if (existingIndex >= 0) {
-      history[existingIndex] = historyItem;
+      history[existingIndex] = item
     } else {
-      history.push(historyItem);
+      history.push(item)
     }
+    history.sort((a, b) => b.createdAt - a.createdAt)
 
-    history.sort((a, b) => b.timestamp - a.timestamp);
-
-    if (history.length > this.MAX_HISTORY_ITEMS) {
-      const itemsToRemove = history.slice(this.MAX_HISTORY_ITEMS);
-      history = history.slice(0, this.MAX_HISTORY_ITEMS);
-      
-      for (const item of itemsToRemove) {
+    if (history.length > MAX_HISTORY_ITEMS) {
+      const itemsToRemove = history.slice(MAX_HISTORY_ITEMS)
+      history = history.slice(0, MAX_HISTORY_ITEMS)
+      for (const itemToRemove of itemsToRemove) {
         try {
-          const dirToRemove = path.join(this.ocrResultsDir, item.jobId);
-          await fs.rm(dirToRemove, { recursive: true, force: true });
+          await fs.rm(path.join(this.ocrResultsDir, itemToRemove.jobId), {
+            recursive: true,
+            force: true,
+          })
         } catch (error) {
-          console.error(`Failed to delete old job directory ${item.jobId}:`, error);
+          console.error(`Failed to delete old job directory ${itemToRemove.jobId}:`, error)
         }
       }
     }
 
-    this.store.set('history', history);
+    this.store.set('history', history)
   }
 
   listHistory(): HistoryItem[] {
-    const history: HistoryItem[] = this.store.get('history', []);
-    return history.sort((a, b) => b.timestamp - a.timestamp);
+    const history: HistoryItem[] = this.store.get('history', [])
+    return history.sort((a, b) => b.createdAt - a.createdAt)
   }
 
-  private async readFileIfExists(jobDir: string, fileName?: string): Promise<string | undefined> {
-    if (!fileName) return undefined;
+  private async readFileIfExists(filePath: string): Promise<string | undefined> {
     try {
-      const filePath = path.join(jobDir, fileName);
-      return await fs.readFile(filePath, 'utf-8');
+      return await fs.readFile(filePath, 'utf-8')
     } catch {
-      return undefined;
+      return undefined
     }
   }
 
-  async getResult(jobId: string): Promise<JobResult | null> {
-    const history: HistoryItem[] = this.store.get('history', []);
-    const item = history.find(h => h.jobId === jobId);
-    
-    if (!item) return null;
+  async getJob(jobId: string): Promise<JobResult | null> {
+    const history: HistoryItem[] = this.store.get('history', [])
+    const item = history.find((h) => h.jobId === jobId)
+    if (!item) return null
 
-    const jobDir = path.join(this.ocrResultsDir, jobId);
-    
-    const result: JobResult = {
+    const rawText = item.rawTextPath ? await this.readFileIfExists(item.rawTextPath) : undefined
+    const structuredText = item.structuredTextPath
+      ? await this.readFileIfExists(item.structuredTextPath)
+      : undefined
+    const summary = item.summaryPath ? await this.readFileIfExists(item.summaryPath) : undefined
+
+    // Data integrity: required fields must be readable and non-empty
+    if (!rawText || !structuredText || !summary) {
+      return null
+    }
+
+    const structuredThoughts = item.structuredThoughtsPath
+      ? await this.readFileIfExists(item.structuredThoughtsPath)
+      : undefined
+    const summaryThoughts = item.summaryThoughtsPath
+      ? await this.readFileIfExists(item.summaryThoughtsPath)
+      : undefined
+
+    return {
       jobId: item.jobId,
       fileName: item.fileName,
-      fileSize: item.fileSize,
-      status: item.status,
-      errorMessage: item.errorMessage,
-      timestamp: item.timestamp,
-      processingTimeMs: item.processingTimeMs
-    };
-
-    if (item.files) {
-      result.rawOutput = await this.readFileIfExists(jobDir, item.files.raw);
-      result.structuredOutput = await this.readFileIfExists(jobDir, item.files.structured);
-      result.summaryOutput = await this.readFileIfExists(jobDir, item.files.summary);
-      result.structuredThoughts = await this.readFileIfExists(jobDir, item.files.structuredThoughts);
-      result.summaryThoughts = await this.readFileIfExists(jobDir, item.files.summaryThoughts);
+      rawText,
+      structuredText,
+      structuredThoughts,
+      summary,
+      summaryThoughts,
+      mode: item.mode,
+      hasPlaceholderWarning: item.hasPlaceholderWarning,
+      createdAt: item.createdAt,
     }
-
-    return result;
   }
 
   async clearHistory(): Promise<void> {
-    this.store.set('history', []);
-    
+    this.store.set('history', [])
     try {
-      await fs.rm(this.ocrResultsDir, { recursive: true, force: true });
+      await fs.rm(this.ocrResultsDir, { recursive: true, force: true })
     } catch (error: any) {
       if (error.code !== 'ENOENT') {
-        console.error('Failed to clear history directory:', error);
+        console.error('Failed to clear history directory:', error)
       }
     }
   }
