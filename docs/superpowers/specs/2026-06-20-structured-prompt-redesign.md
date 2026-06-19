@@ -42,6 +42,8 @@
 | Markdown 清洗兜底 | 加在 `extractResult`，双保险 |
 | 分块时 type 聚合 | 标 `mixed`（跨块类型不同时） |
 | UI 展示类型 | 不需要，仅内部用，不改 renderer |
+| orchestrator 接入 | 改调 chunking.ts 的 structureText/summarize，删除内联裸消息（见自审修订） |
+| type 持久化 | 不持久化，JobResult/HistoryItem 不加 type 字段 |
 
 ## 核心格式规约
 
@@ -220,25 +222,27 @@ A：想问下订单进度
 ## 错误处理与边界
 
 - **`<type>` 缺失或非法值**：`extractType` 返回 `'unknown'`；`<result>` 仍正常提取，不阻塞输出
-- **LLM 仍输出 Markdown**：`extractResult` 后做清洗——剥离 `#` `*` `**` `---` `>` `` ` `` 等标记（仅清标记符号，保留文字内容）。与提示词约束双保险。清洗用正则，有单测
+- **LLM 仍输出 Markdown**：`extractResult` 后做清洗，精确规则见「自审修订点 2」。与提示词约束双保险。清洗用正则，有单测
 - **`<type>` 与实际内容不符**：不做强制纠错，信任 LLM；thoughts 可观测
 - **空输入**：沿用现有行为，`<result>` 为空字符串，不报错
-- **分块场景**：每个 chunk 独立判型、独立输出；`structureText` 拼接时各 chunk 的 `<result>` 用 `\n\n` 连接（沿用现有逻辑），`<type>` 在跨块类型不同时标 `mixed`
+- **分块场景**：每个 chunk 独立判型、独立输出；`structureText` 拼接时各 chunk 的 `<result>` 用 `\n\n` 连接（沿用现有逻辑），`<type>` 聚合规则见「自审修订点 4」
 
 ## 代码影响
 
 | 文件 | 改动 |
 |------|------|
 | `src/main/llm/prompts.ts` | 三个 system prompt 重写为四块结构；新增共享常量 `TYPE_RULES`；新增 `FIDELITY_RULES_FAITHFUL` / `FIDELITY_RULES_ENHANCED` / `FIDELITY_RULES_SUMMARY` |
-| `src/main/llm/llm-client.ts` | 新增 `extractType(response)`；`extractResult` 增加 Markdown 清洗正则 |
+| `src/main/llm/llm-client.ts` | 新增 `extractType(response)`；`extractResult` 增加 Markdown 清洗正则（见自审修订点 2） |
 | `src/main/llm/types.ts` | 新增 `DocType = 'dialogue' \| 'kv' \| 'list' \| 'prose' \| 'mixed' \| 'unknown'` 类型 |
-| `src/main/llm/chunking.ts` | `structureText` 返回值新增 `type?: DocType` 字段；分块拼接逻辑加 type 聚合（跨块类型不同时标 `mixed`） |
+| `src/main/llm/chunking.ts` | `structureText` 返回值新增 `type?: DocType` 字段；分块拼接逻辑加 type 聚合（见自审修订点 4）；`summarize` 返回值固定 `type: 'prose'`（见自审修订点 3） |
+| `src/main/pipeline/orchestrator.ts` | **删除** `runStructuring`/`runSummarizing` 内联裸消息构造；改调 `structureText(rawText, mode, chunkThreshold, this.llm)` 和 `summarize(structuredText, chunkThreshold, this.llm)`；`withRetry` 仍包裹整体调用，语义不变 |
 | `src/main/llm/__tests__/prompts.test.ts` | 断言改为新结构（含 `<type>`、`<TypeRules>`、无 Markdown 输出要求） |
-| `src/main/llm/__tests__/llm-client.test.ts` | 新增 `extractType` 测试、Markdown 清洗测试 |
-| `src/main/llm/__tests__/chunking.test.ts` | 新增 type 字段断言 |
+| `src/main/llm/__tests__/llm-client.test.ts` | 新增 `extractType` 测试（五合法值 + 缺失 + 非法）、Markdown 清洗测试 |
+| `src/main/llm/__tests__/chunking.test.ts` | mock client 加 `extractType`；新增 type 字段断言、分块聚合断言 |
+| `src/main/pipeline/__tests__/orchestrator.test.ts` | 调整为 mock `structureText`/`summarize`（而非内联 callLlm 次数断言）；保留占位符检测、并发、取消、重试测 |
 | `src/renderer/...` | 不改动（类型仅内部用，不展示） |
 
-`summarize` 函数返回值也对应新增 `type?: DocType`（固定 `prose`），保持与 `structureText` 一致的接口形状。
+`summarize` 函数返回值固定 `type?: DocType` = `'prose'`，保持与 `structureText` 一致的接口形状。`structureText` 返回 `type` 由分块聚合得出。两者返回的 `type` **不写入 JobResult/HistoryItem**，仅 LLM 返回时内部可观测（见自审修订点 6）。
 
 ## 测试策略
 
@@ -259,4 +263,70 @@ A：想问下订单进度
 - **LLM 不守 Markdown 禁令**：靠 `extractResult` 清洗兜底，风险可控
 - **类型误判**：LLM 把键值表误判为散文等。靠 thoughts 可观测，不做自动纠错；若后续发现高频误判，可在提示词的 TypeRules 里强化判定准则
 - **提示词变长**：四类规约全量内嵌，token 略增。可接受，因调用次数不变
-- **清洗正则误伤**：剥离 `*` 可能误删原文中的星号。正则需精确：只剥离行首/词边界的 Markdown 标记符号，不删原文中作为内容的符号。单测覆盖此边界
+- **清洗正则误伤**：剥离成对 `*`/`**` 可能误删原文中的成对星号。原文是 OCR 文本，成对星号罕见，且提示词已禁止输出 Markdown，清洗是兜底。单测覆盖此边界
+- **orchestrator 接入的回归风险**：改调 structureText/summarize 后，orchestrator 原有的内联分块/重试语义需在测试中确认等价（重试边界、callLlm 次数断言调整）
+
+## 自审修订（2026-06-20，解决冲突与边界不清）
+
+自审发现原 spec 与现实代码存在重大偏差，修订如下。这些修订是 spec 的正式组成部分，优先级高于上方未修订处的任何隐含假设。
+
+### 修订点 0 · orchestrator 接入提示词库（最大盲区，已确认）
+
+**发现的偏差**：`prompts.ts` 的三个提示词只被 `chunking.ts` 的 `structureText`/`summarize` 使用。但生产路径 `orchestrator.ts` 的 `runStructuring`/`runSummarizing` 绕过了它们——直接发裸 user message（`content = chunk`），摘要还硬编码英文 `"Please summarize the following text:\n\n..."`，不调用 `buildStructurePrompt`/`buildSummaryPrompt`。`chunking.ts` 的 `structureText`/`summarize` 当前是孤岛（有测试、无生产调用方）。
+
+**后果**：只重写 `prompts.ts` 对用户不可见——LLM 收到裸消息，不按新格式输出。
+
+**已确认方案（接入）**：
+- `orchestrator.runStructuring` 改为：`return await structureText(rawText, mode, this.settings.chunkThreshold, this.llm)`
+- `orchestrator.runSummarizing` 改为：`return await summarize(structuredText, this.settings.chunkThreshold, this.llm)`
+- 删除 orchestrator 内联的 `splitIntoChunks` 循环、裸 messages 构造、硬编码英文摘要指令
+- `withRetry` 仍包裹 `structureText`/`summarize` 整体调用，重试语义不变（整体重来）
+- `orchestrator.ts` 顶部 import 调整：`splitIntoChunks` 不再直接用，改 import `structureText, summarize`
+- `orchestrator.test.ts` 调整：原断言 `mockLlm.callLlm` 调用次数（2 chunks + 1 summary）改为 mock `structureText`/`summarize`；保留占位符检测、并发、取消、重试、失败隔离测试
+
+### 修订点 1 · extractType 为 LlmClient 实例方法，调用链与 mock 同步
+
+- `extractType(rawResponse: string): DocType` 为 `LlmClient` 实例方法
+- `chunking.ts` 的 `structureText`/`summarize` 通过 `llmClient.extractType(response)` 调用
+- `chunking.test.ts` 和 `orchestrator.test.ts` 的 mock client 须加 `extractType: vi.fn()`
+- `extractType` 无 `<type>` 标签或值非法时返回 `'unknown'`
+
+### 修订点 2 · 清洗正则精确规则
+
+`extractResult` 提取 `<result>` 内容并清掉 XML 注释后，再按以下顺序清洗 Markdown 标记（仅清标记符号，保留文字内容）：
+
+1. 整行分隔线：`/^[-*_]{3,}\s*$/gm` → 删除整行
+2. 行首标题：`/^#{1,6}\s+/gm` → 删除 `#` 及其后空格，保留标题文字
+3. 行首引用：`/^>\s?/gm` → 删除 `>` 及空格
+4. 成对粗体 `**xxx**`：`/\*\*(.+?)\*\*/g` → `$1`
+5. 成对斜体 `*xxx*`：`/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g` → `$1`（避免误吃 `**`）
+6. 成对反引号 `` `xxx` ``：`` /`(.+?)`/g `` → `$1`
+
+**明确保留**：
+- 行首 `- `（这是清单格式本身，不是要清的 Markdown）
+- 行内非成对的 `*`（作为原文内容）
+- `【】`《》等中文标点
+- `1. 2. 3.` 编号（清单列表的步骤序号形式）
+
+**顺序敏感**：分隔线和行首标记先于成对包裹符，避免互相干扰。
+
+### 修订点 3 · summarize 的 type 硬编码 prose
+
+`summarize` 函数返回值固定 `type: 'prose'`，**不依赖** `extractType` 提取（避免 LLM 漏 `<type>` 标签导致返回 `unknown`）。提示词仍要求 summary 输出 `<type>prose</type>`，但函数层不依赖该标签——摘要本来就是散文，类型确定。
+
+### 修订点 4 · 分块 type 聚合规则
+
+`structureText` 多 chunk 时的 type 聚合：
+- 收集每个 chunk 的 `extractType` 结果
+- 全部相同 → 返回该值
+- 含不同值，或任一为 `'unknown'` → 返回 `'mixed'`
+- 单 chunk → 返回该 chunk 的 type
+- `unknown` 视为不可信，单独出现也触发 `mixed`
+
+### 修订点 5 · placeholder-guard 兼容
+
+清洗在 `extractResult` 内部完成（提取 `<result>` → 清 XML 注释 → 清 Markdown）。`orchestrator` 随后对清洗后的 `text` 调 `assertNoPlaceholder`。`[待补充]` 等占位符不含 Markdown 标记，清洗不影响其检测。测试覆盖「清洗后仍能检出占位符」。
+
+### 修订点 6 · type 不持久化
+
+`JobResult`（`src/shared/types.ts`）和 `HistoryItem` **不加** type 字段。`structureText`/`summarize` 返回的 `type` 仅在 LLM 响应处理时内部可观测（可进 thoughts 或日志），不写入结果对象、不存 history、不传 renderer。最小改动，避免 IPC 契约和 history 序列化连锁变更。若后续需要展示类型，再单独加字段。
