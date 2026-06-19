@@ -111,22 +111,27 @@ export class LlmClient {
   }
 
   /**
-   * Extract structured result from LLM response
-   * Looks for <result>...</result> tags and returns the content inside
-   * Removes any XML-style comments that may appear before or after the content
-   * Falls back to full response if tags are missing
+   * Extract structured result from LLM response and strip Markdown markers.
+   * Order: extract <result> -> remove XML comments -> strip Markdown (rules
+   * per spec 自审修订点 2). Preserves list dashes, numbered prefixes,
+   * 【】, full-width colons, and inline standalone asterisks.
+   * Falls back to full response if <result> tags missing.
    * @param rawResponse - Raw response text from LLM
-   * @returns Extracted result text without LLM comments
+   * @returns Extracted result text without LLM comments or Markdown markers
    */
   extractResult(rawResponse: string): string {
     const match = rawResponse.match(/<result>([\s\S]*?)<\/result>/)
+    let content: string
     if (match && match[1] !== undefined) {
-      let content = match[1].trim()
-      // Remove any XML-style comments like <!-- ... -->
-      content = content.replace(/<!--[\s\S]*?-->/g, '')
-      return content.trim()
+      content = match[1]
+    } else {
+      content = rawResponse
     }
-    return rawResponse.trim()
+    // Remove XML-style comments
+    content = content.replace(/<!--[\s\S]*?-->/g, '')
+    // Strip Markdown markers (order-sensitive)
+    content = stripMarkdown(content)
+    return content.trim()
   }
 
   /**
@@ -246,4 +251,28 @@ export class LlmClient {
     // Default: not recoverable
     return false
   }
+}
+
+/**
+ * Strip Markdown markers from text while preserving plain-text formatting
+ * (list dashes, numbered prefixes, 【】, full-width colons, inline
+ * standalone asterisks). Order-sensitive. Per spec 自审修订点 2.
+ */
+function stripMarkdown(text: string): string {
+  return text
+    // 1. Horizontal rule lines (---/***/___ on their own line, eat trailing newline)
+    .replace(/^[ \t]*[-*_]{3,}[ \t]*\n?/gm, '')
+    // 2. Heading markers at line start (#..# + space)
+    .replace(/^#{1,6}\s+/gm, '')
+    // 3. Blockquote markers at line start
+    .replace(/^>\s?/gm, '')
+    // 4. Bold **xxx** -> xxx
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    // 5. Italic *xxx* -> xxx (avoid eating ** already handled above;
+    //    require non-space adjacent to * to skip standalone math asterisks)
+    .replace(/(?<!\*)\*(?!\s)(.+?)(?<!\s)\*(?!\*)/g, '$1')
+    // 6. Inline code `xxx` -> xxx
+    .replace(/`(.+?)`/g, '$1')
+    // Collapse 3+ blank lines left by removed rule lines into single blank line
+    .replace(/\n{3,}/g, '\n\n')
 }

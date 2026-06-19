@@ -344,6 +344,66 @@ Line 3
       const response = '<result>First</result> middle <result>Second</result>'
       expect(client.extractResult(response)).toBe('First')
     })
+
+    it('should strip markdown heading markers', () => {
+      const resp = '<result>### 标题\n正文</result>'
+      expect(client.extractResult(resp)).toBe('标题\n正文')
+    })
+
+    it('should strip blockquote markers', () => {
+      const resp = '<result>> 引用内容</result>'
+      expect(client.extractResult(resp)).toBe('引用内容')
+    })
+
+    it('should remove horizontal rule lines', () => {
+      const resp = '<result>上文\n---\n下文</result>'
+      expect(client.extractResult(resp)).toBe('上文\n下文')
+    })
+
+    it('should unwrap bold markers', () => {
+      const resp = '<result>**重点** 内容</result>'
+      expect(client.extractResult(resp)).toBe('重点 内容')
+    })
+
+    it('should unwrap italic markers', () => {
+      const resp = '<result>这是 *斜体* 词</result>'
+      expect(client.extractResult(resp)).toBe('这是 斜体 词')
+    })
+
+    it('should unwrap inline code backticks', () => {
+      const resp = '<result>用 `code` 标记</result>'
+      expect(client.extractResult(resp)).toBe('用 code 标记')
+    })
+
+    it('should preserve list dash prefix', () => {
+      const resp = '<result>- 项目一\n- 项目二</result>'
+      expect(client.extractResult(resp)).toBe('- 项目一\n- 项目二')
+    })
+
+    it('should preserve numbered list prefix', () => {
+      const resp = '<result>1. 第一步\n2. 第二步</result>'
+      expect(client.extractResult(resp)).toBe('1. 第一步\n2. 第二步')
+    })
+
+    it('should preserve 【】 brackets', () => {
+      const resp = '<result>【数据盘点】\n探索广度：1337 首</result>'
+      expect(client.extractResult(resp)).toBe('【数据盘点】\n探索广度：1337 首')
+    })
+
+    it('should preserve full-width colon in kv', () => {
+      const resp = '<result>探索广度：1337 首</result>'
+      expect(client.extractResult(resp)).toBe('探索广度：1337 首')
+    })
+
+    it('should not strip inline standalone asterisk', () => {
+      const resp = '<result>5 * 3 = 15</result>'
+      expect(client.extractResult(resp)).toBe('5 * 3 = 15')
+    })
+
+    it('should clean markdown and keep placeholder detectable', () => {
+      const resp = '<result>**标题**\n- 内容[待补充]</result>'
+      expect(client.extractResult(resp)).toBe('标题\n- 内容[待补充]')
+    })
   })
 
   describe('extractThoughts', () => {
