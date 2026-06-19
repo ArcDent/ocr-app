@@ -129,8 +129,8 @@ export default function App() {
                   disabled={isProcessing}
                   className={`flex-1 py-2.5 text-sm font-medium transition-all duration-200 ${
                     mode === 'faithful'
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
-                      : 'bg-white text-slate-700 hover:bg-slate-50'
+                      ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md'
+                      : 'bg-white text-slate-700 hover:bg-amber-50'
                   }`}
                 >
                   忠实提取
@@ -140,8 +140,8 @@ export default function App() {
                   disabled={isProcessing}
                   className={`flex-1 py-2.5 text-sm font-medium border-l border-slate-200 transition-all duration-200 ${
                     mode === 'enhanced'
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
-                      : 'bg-white text-slate-700 hover:bg-slate-50'
+                      ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md'
+                      : 'bg-white text-slate-700 hover:bg-amber-50'
                   }`}
                 >
                   增强摘要
@@ -153,7 +153,7 @@ export default function App() {
               <button
                 onClick={startBatch}
                 disabled={!hasQueuedFiles}
-                className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 disabled:from-slate-300 disabled:to-slate-400 transition-all duration-200 shadow-lg hover:shadow-xl disabled:shadow-none"
+                className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-semibold hover:from-amber-600 hover:to-orange-600 disabled:from-slate-300 disabled:to-slate-400 transition-all duration-200 shadow-lg shadow-amber-500/20 hover:shadow-xl disabled:shadow-none"
               >
                 <Play className="w-5 h-5" />
                 开始处理
