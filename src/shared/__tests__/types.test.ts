@@ -20,8 +20,18 @@ describe('IPC_CHANNELS', () => {
   it('should have all required channels', () => {
     expect(IPC_CHANNELS.SETTINGS_GET).toBe('settings:get')
     expect(IPC_CHANNELS.SETTINGS_SET).toBe('settings:set')
+    expect(IPC_CHANNELS.SETTINGS_TEST_OCR).toBe('settings:test-ocr')
+    expect(IPC_CHANNELS.SETTINGS_TEST_LLM).toBe('settings:test-llm')
+    expect(IPC_CHANNELS.OCR_PICK_FILES).toBe('ocr:pick-files')
     expect(IPC_CHANNELS.OCR_START_BATCH).toBe('ocr:start-batch')
+    expect(IPC_CHANNELS.OCR_CANCEL).toBe('ocr:cancel')
+    expect(IPC_CHANNELS.OCR_GET_RESULT).toBe('ocr:get-result')
+    expect(IPC_CHANNELS.EXPORT_BATCH).toBe('export:batch')
+    expect(IPC_CHANNELS.HISTORY_LIST).toBe('history:list')
+    expect(IPC_CHANNELS.HISTORY_GET).toBe('history:get')
+    expect(IPC_CHANNELS.HISTORY_CLEAR).toBe('history:clear')
     expect(IPC_CHANNELS.ON_JOB_PROGRESS).toBe('on:job-progress')
+    expect(IPC_CHANNELS.ON_BATCH_DONE).toBe('on:batch-done')
   })
 
   it('should have unique channel values', () => {
@@ -58,7 +68,11 @@ describe('Constants', () => {
   })
 
   it('should have valid DEFAULT_SETTINGS', () => {
+    expect(DEFAULT_SETTINGS.textin.appId).toBe('')
+    expect(DEFAULT_SETTINGS.textin.secretCode).toBe('')
     expect(DEFAULT_SETTINGS.textin.baseUrl).toBe('https://api.textin.com')
+    expect(DEFAULT_SETTINGS.llm.baseUrl).toBe('')
+    expect(DEFAULT_SETTINGS.llm.apiKey).toBe('')
     expect(DEFAULT_SETTINGS.llm.model).toBe('gpt-4')
     expect(DEFAULT_SETTINGS.concurrency).toBe(3)
     expect(DEFAULT_SETTINGS.chunkThreshold).toBe(12000)
@@ -72,8 +86,14 @@ describe('Type Interfaces', () => {
       filePath: '/path/to/file.jpg',
       fileName: 'file.jpg',
       stage: 'queued',
+      progress: 50,
+      error: 'test error',
+      thoughts: 'test thoughts',
     }
     expect(job.jobId).toBe('test-123')
+    expect(job.progress).toBe(50)
+    expect(job.error).toBe('test error')
+    expect(job.thoughts).toBe('test thoughts')
   })
 
   it('should create valid JobResult', () => {
@@ -85,8 +105,10 @@ describe('Type Interfaces', () => {
       summary: 'summary',
       mode: 'faithful',
       createdAt: Date.now(),
+      error: 'test error',
     }
     expect(result.mode).toBe('faithful')
+    expect(result.error).toBe('test error')
   })
 
   it('should create valid AppSettings', () => {
@@ -117,25 +139,35 @@ describe('Type Interfaces', () => {
       rawTextPath: '/path/raw.txt',
       structuredTextPath: '/path/structured.md',
       summaryPath: '/path/summary.md',
+      error: 'test error',
     }
     expect(item.mode).toBe('enhanced')
+    expect(item.error).toBe('test error')
   })
 })
 
 describe('IPC Type Maps', () => {
   it('should have type-safe IpcRequest mapping', () => {
-    // TypeScript compile-time check
-    const requestTypes: IpcRequest = {} as IpcRequest
-    expect(typeof requestTypes).toBe('object')
+    const getSettings: IpcRequest['settings:get'] = {} as unknown as void
+    const setSettings: IpcRequest['settings:set'] = { textin: { appId: '', secretCode: '', baseUrl: '' }, llm: { baseUrl: '', apiKey: '', model: '' }, concurrency: 3, chunkThreshold: 12000 }
+    
+    expect(getSettings).toBeUndefined()
+    expect(setSettings.concurrency).toBe(3)
   })
 
   it('should have type-safe IpcResponse mapping', () => {
-    const responseTypes: IpcResponse = {} as IpcResponse
-    expect(typeof responseTypes).toBe('object')
+    const getSettingsResponse: IpcResponse['settings:get'] = { textin: { appId: '', secretCode: '', baseUrl: '' }, llm: { baseUrl: '', apiKey: '', model: '' }, concurrency: 3, chunkThreshold: 12000 }
+    const setSettingsResponse: IpcResponse['settings:set'] = { success: true }
+    
+    expect(getSettingsResponse.concurrency).toBe(3)
+    expect(setSettingsResponse.success).toBe(true)
   })
 
   it('should have type-safe IpcEvents mapping', () => {
-    const eventTypes: IpcEvents = {} as IpcEvents
-    expect(typeof eventTypes).toBe('object')
+    const onJobProgress: IpcEvents['on:job-progress'] = { jobId: '123', filePath: 'test.jpg', fileName: 'test.jpg', stage: 'queued' }
+    const onBatchDone: IpcEvents['on:batch-done'] = { batchId: '456' }
+    
+    expect(onJobProgress.jobId).toBe('123')
+    expect(onBatchDone.batchId).toBe('456')
   })
 })
