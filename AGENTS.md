@@ -24,6 +24,21 @@ src/
 
 ## 最近操作
 
+- **2026-06-20**: 前端主题重构为温暖色系（全部完成）
+  - **设计方案**：从蓝色系重构为琥珀蜂蜜主题（amber-honey），保持功能完整性
+  - **配色映射**：
+    - 主按钮：`from-blue-600 to-indigo-600` → `from-amber-500 to-orange-500`
+    - 选中态背景：`from-blue-100 to-indigo-100` → `from-amber-100 to-orange-100`
+    - 页面背景：`from-slate-50 via-blue-50 to-indigo-50` → `from-amber-50 via-orange-50 to-yellow-50`
+    - 主阴影光晕：`shadow-lg` → `shadow-lg shadow-amber-500/20`
+  - **修改文件**：
+    - `App.tsx`: 页面背景、Header logo、副标题、设置按钮、主按钮、模式切换、文件选择按钮、底部操作栏
+    - `FileQueueList.tsx`: 队列标题栏、选中项、进度条、加载图标
+    - `ResultDetail.tsx`: 标题栏、模式标签、标签页、AI 推理按钮
+    - `ConfigDialog.tsx`: Header/Footer 背景、测试按钮、保存按钮、输入框 focus 边框、章节装饰条
+  - **保留功能色**：绿色（emerald）表示成功，红色（red）表示错误，均保持不变
+  - **当前状态**：所有视觉元素已迁移至温暖色系，无遗漏蓝色，功能完整
+
 - **2026-06-20**: 前端美化与功能修复（全部完成）
   - **中文化界面**：所有按钮、标签、提示文本改为中文（App.tsx、FileQueueList、ResultDetail、ConfigDialog）
   - **修复导出路径问题**：新增 `DIALOG_PICK_EXPORT_DIR` IPC 通道，导出前弹出目录选择对话框（ipc-handlers.ts line 149-160）
@@ -80,14 +95,14 @@ src/
 
 ## 进行中
 
-所有计划任务已完成。当前版本功能完整，界面已中文化并美化，导出功能已修复。
+所有计划任务已完成。当前版本功能完整，界面已中文化并迁移至温暖色系主题，导出功能正常。
 
 ## 下一步
 
 **立即**：
-1. 真实 API 联调：配置真实 TextIn + LLM 凭证，跑通选文件→OCR→结构化→摘要→导出→历史全链路
-2. 清理 `store.test.ts` 的 newStore 未用变量 + uuid Uint8Array tsc 噪音
-3. 清理 `.claude/worktrees/busy-wilbur-4a6988` 残留 worktree
+1. 构建 portable exe：打包 Electron 应用为独立可执行文件（需编写构建配置）
+2. 真实 API 联调：配置真实 TextIn + LLM 凭证，跑通选文件→OCR→结构化→摘要→导出→历史全链路
+3. 清理 `store.test.ts` 的 newStore 未用变量 + uuid Uint8Array tsc 噪音
 
 **后续**：
 - Phase 7：集成测试（happy path）+ 用户文档
