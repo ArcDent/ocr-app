@@ -86,6 +86,10 @@ export class Orchestrator {
     return this.results.get(jobId)
   }
 
+  public getJobs(): OcrJob[] {
+    return Array.from(this.jobs.values())
+  }
+
   private updateJob(job: OcrJob, stage: JobStage, onProgress: (job: OcrJob) => void, error?: string) {
     job.stage = stage
     if (error) job.error = error
@@ -107,7 +111,7 @@ export class Orchestrator {
         (e) => this.llm.isRecoverableError(e)
       )
       
-      const hasPlaceholderWarning = !assertNoPlaceholder(structuredResult.text)
+      const hasPlaceholderWarning = !assertNoPlaceholder(structuredResult.text).clean
 
       if (this.isCancelled) throw new Error('Cancelled')
       // Note: LLM calls reuse the LLM client recoverable error logic

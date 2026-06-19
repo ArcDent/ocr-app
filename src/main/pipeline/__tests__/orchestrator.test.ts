@@ -12,9 +12,6 @@ vi.mock('uuid', () => ({
 vi.mock('../../llm/chunking', () => ({
   splitIntoChunks: (text: string, _threshold: number) => [text.substring(0, text.length/2), text.substring(text.length/2)]
 }))
-vi.mock('../../llm/placeholder-guard', () => ({
-  assertNoPlaceholder: (text: string) => !text.includes('PLACEHOLDER_WARNING')
-}))
 
 describe('Orchestrator', () => {
   let mockTextIn: any
@@ -115,8 +112,8 @@ describe('Orchestrator', () => {
 
   it('should detect placeholders', async () => {
     const onProgress = vi.fn()
-    mockLlm.extractResult.mockReturnValueOnce('text PLACEHOLDER_WARNING text')
-    
+    mockLlm.extractResult.mockReturnValueOnce('text [待补充] more text')
+
     await orchestrator.startBatch(['/file1.pdf'], 'faithful', onProgress)
     const result = orchestrator.getResult('mock-uuid-1234')
     expect(result?.hasPlaceholderWarning).toBe(true)
@@ -154,5 +151,16 @@ describe('Orchestrator', () => {
 
     await orchestrator.startBatch(['/f1', '/f2', '/f3', '/f4'], 'faithful', onProgress)
     expect(maxTasks).toBeLessThanOrEqual(2)
+  })
+
+  it('getJobs returns snapshot of current batch jobs', async () => {
+    const onProgress = vi.fn()
+    let uuidCounter = 0
+    vi.mocked(uuid.v4).mockImplementation(() => `mock-uuid-${++uuidCounter}`)
+
+    await orchestrator.startBatch(['/f1.pdf', '/f2.pdf'], 'faithful', onProgress)
+    const jobs = orchestrator.getJobs()
+    expect(jobs).toHaveLength(2)
+    expect(jobs.map((j) => j.fileName).sort()).toEqual(['f1.pdf', 'f2.pdf'])
   })
 })
