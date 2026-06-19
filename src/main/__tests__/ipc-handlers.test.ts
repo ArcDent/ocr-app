@@ -361,6 +361,8 @@ describe('registerIpcHandlers', () => {
     it('returns in-memory result first and does not consult history when memory has it', async () => {
       // Set up an orchestrator whose getResult returns a known object for 'j1'.
       // historyManager also has a DIFFERENT object for 'j1' — it must NOT be returned.
+      // The handler's finally block nulls currentOrchestrator once startBatch
+      // settles, so we use a never-resolving startBatch to keep it alive.
       ;(configStore.getSettings as any).mockReturnValue(baseSettings)
       const memoryResult = { jobId: 'j1', from: 'memory' }
       const getResult = vi
@@ -369,10 +371,8 @@ describe('registerIpcHandlers', () => {
           id === 'j1' ? memoryResult : undefined
         )
       ;(Orchestrator as any).mockImplementation(() => ({
-        startBatch: vi.fn().mockResolvedValue({ total: 1, success: 1, failed: 0 }),
-        getJobs: vi.fn().mockReturnValue([
-          { jobId: 'j1', fileName: 'f.pdf', stage: 'done' },
-        ]),
+        startBatch: vi.fn(() => new Promise(() => {})), // never resolves
+        getJobs: vi.fn().mockReturnValue([]),
         getResult,
         cancel: vi.fn(),
       }))
@@ -383,25 +383,12 @@ describe('registerIpcHandlers', () => {
         from: 'history',
       })
 
-      // Run a START_BATCH to install the orchestrator as currentOrchestrator.
-      // The finally block will null it after completion, but OCR_GET_RESULT is
-      // called synchronously right after the await resolves while the test still
-      // holds the orchestrator reference — BUT the handler nulled it in finally.
-      // To keep currentOrchestrator alive we use a never-resolving startBatch:
-      const startBatchNever = vi.fn(() => new Promise(() => {}))
-      ;(Orchestrator as any).mockImplementation(() => ({
-        startBatch: startBatchNever,
-        getJobs: vi.fn().mockReturnValue([]),
-        getResult,
-        cancel: vi.fn(),
-      }))
-
       const event = { sender: { send: mockSend } }
       const batchPromise = handlers[IPC_CHANNELS.OCR_START_BATCH](
         event,
         { paths: ['/f.pdf'], mode: 'faithful' }
       )
-      batchPromise.catch(() => {})
+      batchPromise.catch(() => {}) // avoid unhandled rejection noise
 
       // startBatch is pending → currentOrchestrator is still set.
       const result = await handlers[IPC_CHANNELS.OCR_GET_RESULT](
