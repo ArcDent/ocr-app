@@ -88,12 +88,10 @@ describe('Type Interfaces', () => {
       stage: 'queued',
       progress: 50,
       error: 'test error',
-      thoughts: 'test thoughts',
     }
     expect(job.jobId).toBe('test-123')
     expect(job.progress).toBe(50)
     expect(job.error).toBe('test error')
-    expect(job.thoughts).toBe('test thoughts')
   })
 
   it('should create valid JobResult', () => {
@@ -102,13 +100,17 @@ describe('Type Interfaces', () => {
       fileName: 'file.jpg',
       rawText: 'raw',
       structuredText: 'structured',
+      structuredThoughts: 'structured thoughts',
       summary: 'summary',
+      summaryThoughts: 'summary thoughts',
       mode: 'faithful',
+      hasPlaceholderWarning: true,
       createdAt: Date.now(),
-      error: 'test error',
     }
     expect(result.mode).toBe('faithful')
-    expect(result.error).toBe('test error')
+    expect(result.structuredThoughts).toBe('structured thoughts')
+    expect(result.summaryThoughts).toBe('summary thoughts')
+    expect(result.hasPlaceholderWarning).toBe(true)
   })
 
   it('should create valid AppSettings', () => {
@@ -138,11 +140,13 @@ describe('Type Interfaces', () => {
       createdAt: Date.now(),
       rawTextPath: '/path/raw.txt',
       structuredTextPath: '/path/structured.md',
+      structuredThoughtsPath: '/path/structured-thoughts.md',
       summaryPath: '/path/summary.md',
-      error: 'test error',
+      summaryThoughtsPath: '/path/summary-thoughts.md',
     }
     expect(item.mode).toBe('enhanced')
-    expect(item.error).toBe('test error')
+    expect(item.structuredThoughtsPath).toBe('/path/structured-thoughts.md')
+    expect(item.summaryThoughtsPath).toBe('/path/summary-thoughts.md')
   })
 })
 
