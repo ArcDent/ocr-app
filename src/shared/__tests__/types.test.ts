@@ -169,9 +169,11 @@ describe('IPC Type Maps', () => {
 
   it('should have type-safe IpcEvents mapping', () => {
     const onJobProgress: IpcEvents['on:job-progress'] = { jobId: '123', filePath: 'test.jpg', fileName: 'test.jpg', stage: 'queued' }
-    const onBatchDone: IpcEvents['on:batch-done'] = { batchId: '456' }
-    
+    const onBatchDone: IpcEvents['on:batch-done'] = { total: 5, success: 4, failed: 1 }
+
     expect(onJobProgress.jobId).toBe('123')
-    expect(onBatchDone.batchId).toBe('456')
+    expect(onBatchDone.total).toBe(5)
+    expect(onBatchDone.success).toBe(4)
+    expect(onBatchDone.failed).toBe(1)
   })
 })
