@@ -24,27 +24,24 @@ src/
 
 ## 最近操作
 
-- **2026-06-19**: 完成 Task 17-18 (ConfigStore 存储实现与测试)
-  - 使用 `electron-store` 封装安全、带默认回退的配置存储
-  - 支持 `textin` 和 `llm` 配置树的 Deep Merge 部分更新
-  - 完成全局配置单元测试覆盖
-- **2026-06-19**: 整理工作区
-  - 将测试与覆盖率输出移至 `docs/`
-  - 将独立 JS 校验脚本移至 `scripts/`
+- **2026-06-19**: 完成 Phase 4 (存储与导出)
+  - Task 17-18: ConfigStore 配置管理（electron-store 加密存储）
+  - Task 19-20: HistoryManager 历史记录管理（元数据 + 文件系统双轨存储，100 条限制）
+  - Task 21-22: Markdown 导出器（批量导出 + index.md 汇总页）
+
 - **2026-06-19**: 完成 Phase 3 (Main Process Core Modules)
   - 实现 TextInClient、LlmClient、Prompt、Placeholder Guard、Chunking、Orchestrator
   - 核心架构和流转逻辑建立并完成测试分析
 
 ## 进行中
 
-完成 `ConfigStore`，进行中: Phase 4 (存储与导出) 的其余部分。
+Phase 4 已完成，准备开始 Phase 5 (IPC 与 Preload)
 
 ## 下一步
 
-- **Phase 4: 存储与导出（Task 19-24）**
-  - Task 19-20: 历史记录管理（history.ts + tests）
-  - Task 21-22: 文本落盘存储（fs-writer.ts + tests）
-  - Task 23-24: Markdown 导出器（exporter.ts + tests）
+**Phase 5: IPC 与 Preload（阶段 11-12）**
+- 阶段 11: IPC Handler（Main 进程 IPC 通道实现）
+- 阶段 12: Preload API（contextBridge 暴露类型安全 API）
 
 ## 关键发现
 
