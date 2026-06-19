@@ -1,5 +1,6 @@
 {
   "name": "ocr-app",
+  "productName": "OCR App",
   "version": "0.1.0",
   "description": "OCR + LLM structured text extraction desktop app",
   "main": "./out/main/index.js",
@@ -14,12 +15,20 @@
     "test:main": "vitest --project main",
     "test:renderer": "vitest --project renderer",
     "lint": "eslint src --ext .ts,.tsx",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "make": "npm run build && electron-forge make",
+    "package": "npm run build && electron-forge package"
   },
   "directories": {
     "doc": "docs"
   },
+  "config": {
+    "forge": "./forge.config.js"
+  },
   "devDependencies": {
+    "@electron-forge/cli": "^7.5.0",
+    "@electron-forge/maker-squirrel": "^7.5.0",
+    "@electron-forge/plugin-auto-unpack-natives": "^7.5.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^14.3.1",
     "@types/electron-store": "^1.3.1",
