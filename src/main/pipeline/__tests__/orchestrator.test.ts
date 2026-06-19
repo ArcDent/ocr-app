@@ -2,12 +2,12 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { Orchestrator } from '../orchestrator'
 import { TextInClient } from '../../ocr/textin-client'
 import { LlmClient } from '../../llm/llm-client'
-import * as uuid from 'uuid'
+import { randomUUID } from 'crypto'
 
 vi.mock('../../ocr/textin-client')
 vi.mock('../../llm/llm-client')
-vi.mock('uuid', () => ({
-  v4: vi.fn(() => 'mock-uuid-1234')
+vi.mock('crypto', () => ({
+  randomUUID: vi.fn(() => 'mock-uuid-1234')
 }))
 vi.mock('../../llm/chunking', () => ({
   splitIntoChunks: (text: string, _threshold: number) => [text.substring(0, text.length/2), text.substring(text.length/2)]
@@ -20,8 +20,8 @@ describe('Orchestrator', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    // Reset uuid.v4 to default implementation after clearAllMocks
-    vi.mocked(uuid.v4).mockReturnValue('mock-uuid-1234')
+    // Reset randomUUID to default implementation after clearAllMocks
+    vi.mocked(randomUUID).mockReturnValue('mock-uuid-1234')
 
     mockTextIn = new TextInClient({ appId: 'appId', secretCode: 'secret', baseUrl: 'http://api' }) as any
     mockLlm = new LlmClient({ baseUrl: 'http://api', apiKey: 'key', model: 'model' }) as any
@@ -59,7 +59,7 @@ describe('Orchestrator', () => {
   it('should isolate failures', async () => {
     const onProgress = vi.fn()
     let uuidCounter = 0
-    vi.mocked(uuid.v4).mockImplementation(() => `mock-uuid-${++uuidCounter}`)
+    vi.mocked(randomUUID).mockImplementation(() => `mock-uuid-${++uuidCounter}`)
 
     mockTextIn.recognizeFile
       .mockRejectedValueOnce(new Error('Fatal error'))
@@ -134,7 +134,7 @@ describe('Orchestrator', () => {
   it('should enforce concurrency limits', async () => {
     const onProgress = vi.fn()
     let uuidCounter = 0
-    vi.mocked(uuid.v4).mockImplementation(() => `mock-uuid-${++uuidCounter}`)
+    vi.mocked(randomUUID).mockImplementation(() => `mock-uuid-${++uuidCounter}`)
 
     let activeTasks = 0
     let maxTasks = 0
@@ -156,7 +156,7 @@ describe('Orchestrator', () => {
   it('getJobs returns snapshot of current batch jobs', async () => {
     const onProgress = vi.fn()
     let uuidCounter = 0
-    vi.mocked(uuid.v4).mockImplementation(() => `mock-uuid-${++uuidCounter}`)
+    vi.mocked(randomUUID).mockImplementation(() => `mock-uuid-${++uuidCounter}`)
 
     await orchestrator.startBatch(['/f1.pdf', '/f2.pdf'], 'faithful', onProgress)
     const jobs = orchestrator.getJobs()

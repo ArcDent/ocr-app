@@ -1,7 +1,7 @@
 import { TextInClient } from '../ocr/textin-client'
 import { LlmClient } from '../llm/llm-client'
 import { OcrJob, JobResult, ProcessMode, JobStage } from '../../shared/types'
-import { v4 as uuidv4 } from 'uuid'
+import { randomUUID } from 'crypto'
 import * as path from 'path'
 import { splitIntoChunks } from '../llm/chunking'
 import { assertNoPlaceholder } from '../llm/placeholder-guard'
@@ -28,7 +28,7 @@ export class Orchestrator {
 
     // Initialize jobs
     paths.forEach(p => {
-      const jobId = uuidv4()
+      const jobId = randomUUID()
       this.jobs.set(jobId, {
         jobId,
         filePath: p,
