@@ -49,6 +49,33 @@ export const TYPE_RULES = `
 </TypeRules>
 `.trim()
 
+export const FIDELITY_RULES_FAITHFUL = `
+<FidelityRules>
+R1. 只能使用 OCR 原文已存在的文字，严禁新增/推测/补全原文没有的内容。
+R2. 严禁任何占位符：[待补充]、[xxx]、TODO、（此处省略）、......、…… 等一律禁止。
+R3. OCR 明显残缺处按原文如实保留，不编造填充。
+R4. 操作仅限：按 TypeRules 排版、合并被错误断开的段落、清除噪声换行。
+</FidelityRules>
+`.trim()
+
+export const FIDELITY_RULES_ENHANCED = `
+<FidelityRules>
+R1. 以 OCR 原文为准，可在高置信度时修正明显识别错误（形近字、错误断词），补全被截断常见词句，但不改语义、不增事实。
+R2. 严禁任何占位符：[待补充]、[xxx]、TODO、（此处省略）、......、…… 等一律禁止。
+R3. 修正应保守，拿不准就保留原文；仍严禁任何占位符。
+R4. 操作包括：按 TypeRules 排版、合并被错误断开的段落、清除噪声换行、修正明显 OCR 错误。
+</FidelityRules>
+`.trim()
+
+export const FIDELITY_RULES_SUMMARY = `
+<FidelityRules>
+R1. 只概括文档实际存在的信息，不引入外部知识或推测。
+R2. 3–5 句，突出主题、关键要点、结论。
+R3. 严禁占位符与本摘要由 AI 生成之类元话语。
+R4. 摘要固定为纯段落散文，输出类型固定 prose。
+</FidelityRules>
+`.trim()
+
 /**
  * Faithful mode: Strict fidelity to OCR text
  * Rules:

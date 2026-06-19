@@ -3,6 +3,9 @@ import {
   buildStructurePrompt,
   buildSummaryPrompt,
   TYPE_RULES,
+  FIDELITY_RULES_FAITHFUL,
+  FIDELITY_RULES_ENHANCED,
+  FIDELITY_RULES_SUMMARY,
 } from '../prompts'
 
 describe('TYPE_RULES shared constant', () => {
@@ -22,6 +25,27 @@ describe('TYPE_RULES shared constant', () => {
   it('should prohibit markdown markers', () => {
     expect(TYPE_RULES).toContain('禁止')
     expect(TYPE_RULES).toMatch(/#|星号|Markdown/)
+  })
+})
+
+describe('FIDELITY_RULES constants', () => {
+  it('should export faithful rules forbidding addition/guess', () => {
+    expect(FIDELITY_RULES_FAITHFUL).toContain('R1')
+    expect(FIDELITY_RULES_FAITHFUL).toContain('严禁')
+    expect(FIDELITY_RULES_FAITHFUL).toContain('占位符')
+    expect(FIDELITY_RULES_FAITHFUL).toContain('如实保留')
+  })
+
+  it('should export enhanced rules allowing conservative correction', () => {
+    expect(FIDELITY_RULES_ENHANCED).toContain('高置信度')
+    expect(FIDELITY_RULES_ENHANCED).toContain('保守')
+    expect(FIDELITY_RULES_ENHANCED).toContain('占位符')
+  })
+
+  it('should export summary rules for 3-5 sentences', () => {
+    expect(FIDELITY_RULES_SUMMARY).toContain('3')
+    expect(FIDELITY_RULES_SUMMARY).toContain('5')
+    expect(FIDELITY_RULES_SUMMARY).toContain('元话语')
   })
 })
 
