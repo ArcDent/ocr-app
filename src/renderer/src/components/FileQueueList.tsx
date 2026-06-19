@@ -1,17 +1,25 @@
 
-import { Check, FileText, Loader2, XCircle } from 'lucide-react'
+import { Check, FileText, Loader2, XCircle, Clock } from 'lucide-react'
 import { JobStage, OcrJob } from '../../../shared/types'
+
+interface PendingFile {
+  path: string
+  fileName: string
+}
 
 interface FileQueueListProps {
   jobs: OcrJob[]
+  pendingFiles: PendingFile[]
   selectedJobId: string | null
   onSelectJob: (jobId: string) => void
   onClear: () => void
   isProcessing: boolean
 }
 
-export function FileQueueList({ jobs, selectedJobId, onSelectJob, onClear, isProcessing }: FileQueueListProps) {
-  if (jobs.length === 0) {
+export function FileQueueList({ jobs, pendingFiles, selectedJobId, onSelectJob, onClear, isProcessing }: FileQueueListProps) {
+  const totalCount = jobs.length + pendingFiles.length
+
+  if (totalCount === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center text-gray-500 p-8 text-center border-r border-gray-200">
         <FileText className="w-12 h-12 mb-4 text-gray-300" />
@@ -58,8 +66,8 @@ export function FileQueueList({ jobs, selectedJobId, onSelectJob, onClear, isPro
   return (
     <div className="flex flex-col h-full border-r border-gray-200 bg-gray-50">
       <div className="p-3 border-b border-gray-200 flex justify-between items-center bg-white">
-        <h2 className="font-semibold text-gray-700">Queue ({jobs.length})</h2>
-        {!isProcessing && jobs.length > 0 && (
+        <h2 className="font-semibold text-gray-700">Queue ({totalCount})</h2>
+        {!isProcessing && totalCount > 0 && (
           <button
             onClick={onClear}
             className="text-xs text-gray-500 hover:text-red-500 px-2 py-1 rounded"
@@ -71,6 +79,24 @@ export function FileQueueList({ jobs, selectedJobId, onSelectJob, onClear, isPro
 
       <div className="flex-1 overflow-y-auto">
         <ul className="divide-y divide-gray-100">
+          {pendingFiles.map((file, idx) => (
+            <li
+              key={`pending-${idx}-${file.path}`}
+              className="p-3 bg-white"
+            >
+              <div className="flex items-start gap-3">
+                <div className="mt-1 flex-shrink-0">
+                  <Clock className="w-4 h-4 text-gray-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate" title={file.fileName}>
+                    {file.fileName}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">Pending</p>
+                </div>
+              </div>
+            </li>
+          ))}
           {jobs.map((job) => (
             <li
               key={job.jobId}

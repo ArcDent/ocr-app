@@ -22,6 +22,7 @@ describe('FileQueueList', () => {
     render(
       <FileQueueList
         jobs={[]}
+        pendingFiles={[]}
         selectedJobId={null}
         onSelectJob={mockOnSelectJob}
         onClear={mockOnClear}
@@ -35,6 +36,7 @@ describe('FileQueueList', () => {
     render(
       <FileQueueList
         jobs={mockJobs}
+        pendingFiles={[]}
         selectedJobId={null}
         onSelectJob={mockOnSelectJob}
         onClear={mockOnClear}
@@ -51,6 +53,7 @@ describe('FileQueueList', () => {
     render(
       <FileQueueList
         jobs={mockJobs}
+        pendingFiles={[]}
         selectedJobId={null}
         onSelectJob={mockOnSelectJob}
         onClear={mockOnClear}
@@ -66,6 +69,7 @@ describe('FileQueueList', () => {
     render(
       <FileQueueList
         jobs={mockJobs}
+        pendingFiles={[]}
         selectedJobId={null}
         onSelectJob={mockOnSelectJob}
         onClear={mockOnClear}
@@ -81,6 +85,7 @@ describe('FileQueueList', () => {
     render(
       <FileQueueList
         jobs={mockJobs}
+        pendingFiles={[]}
         selectedJobId={null}
         onSelectJob={mockOnSelectJob}
         onClear={mockOnClear}
@@ -89,5 +94,27 @@ describe('FileQueueList', () => {
     )
     
     expect(screen.queryByText('Clear')).not.toBeInTheDocument()
+  })
+
+  it('renders pending files without jobId and not clickable', () => {
+    render(
+      <FileQueueList
+        jobs={[]}
+        pendingFiles={[
+          { path: '/a.pdf', fileName: 'a.pdf' },
+          { path: '/b.pdf', fileName: 'b.pdf' },
+        ]}
+        selectedJobId={null}
+        onSelectJob={mockOnSelectJob}
+        onClear={mockOnClear}
+        isProcessing={false}
+      />
+    )
+    expect(screen.getByText('Queue (2)')).toBeInTheDocument()
+    expect(screen.getByText('a.pdf')).toBeInTheDocument()
+    expect(screen.getAllByText('Pending')).toHaveLength(2)
+    // Clicking pending file name should NOT call onSelectJob
+    fireEvent.click(screen.getByText('a.pdf'))
+    expect(mockOnSelectJob).not.toHaveBeenCalled()
   })
 })
