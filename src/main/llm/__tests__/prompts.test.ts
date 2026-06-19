@@ -1,5 +1,29 @@
 import { describe, it, expect } from 'vitest'
-import { buildStructurePrompt, buildSummaryPrompt } from '../prompts'
+import {
+  buildStructurePrompt,
+  buildSummaryPrompt,
+  TYPE_RULES,
+} from '../prompts'
+
+describe('TYPE_RULES shared constant', () => {
+  it('should be exported and contain all four type formats', () => {
+    expect(TYPE_RULES).toContain('对话体')
+    expect(TYPE_RULES).toContain('键值表')
+    expect(TYPE_RULES).toContain('清单列表')
+    expect(TYPE_RULES).toContain('纯段落散文')
+    expect(TYPE_RULES).toContain('【】')
+    expect(TYPE_RULES).toContain('dialogue')
+    expect(TYPE_RULES).toContain('kv')
+    expect(TYPE_RULES).toContain('list')
+    expect(TYPE_RULES).toContain('prose')
+    expect(TYPE_RULES).toContain('mixed')
+  })
+
+  it('should prohibit markdown markers', () => {
+    expect(TYPE_RULES).toContain('禁止')
+    expect(TYPE_RULES).toMatch(/#|星号|Markdown/)
+  })
+})
 
 describe('Prompt Library', () => {
   describe('buildStructurePrompt', () => {

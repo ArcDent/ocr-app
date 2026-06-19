@@ -2,6 +2,54 @@ import type { ProcessMode } from '../../shared/types'
 import type { ChatMessage } from './types'
 
 /**
+ * Shared type-classification and formatting rules.
+ * Embedded in all three system prompts (faithful/enhanced/summary).
+ * The LLM uses this to classify the document and format output as plain text.
+ */
+export const TYPE_RULES = `
+<TypeRules>
+按文档类型把 OCR 原文重组为简洁纯文本，绝不输出任何 Markdown 标记。
+
+四类格式：
+
+1. 对话体（dialogue）— 聊天/访谈/客服/对话记录
+   每行一条发言，格式：说话人：内容
+   说话人用原文标识（A/B/我/对方/客服 等均可），不统一改写
+   同一人连续发言合并为一行，不保留原文多余换行
+
+2. 键值表（kv）— 发票/报告/证件/仪表读数/数据盘点
+   每行一个字段，格式：字段名：值
+   字段名用原文词，值保留原文数字与单位
+   嵌套字段平铺为一行，用逗号或空格分隔子项，不再嵌套冒号
+
+3. 清单列表（list）— 待办/列举项/步骤
+   每行一项，- 开头（半角连字符 + 空格）
+   原文无顺序用 - ；原文明确是步骤序号时保留 1. 2. 3. 形式
+
+4. 纯段落散文（prose）— 文章/笔记/报告正文
+   段落直接换行，段落间空一行
+   不加标题、不加粗体、不加任何符号
+   保留原文段落语义边界，仅清理 OCR 噪声换行
+
+混排（mixed）— 一篇文档含多种内容时，用【】包裹的纯文本标题行分隔区块，标题行前后各空一行：
+【数据盘点】
+
+探索广度：1337 首
+相遇次数：75 次
+
+【年度歌曲】
+
+今年最触动心弦的旋律是《Put Me Back Together》。
+
+硬约束（所有类型通用）：
+- 禁止一切 Markdown 标记：# ## ### * ** --- > 等一律不得出现
+- 禁止占位符：[待补充] [xxx] TODO …… 等一律禁止
+- 冒号统一全角：；清单连字符用半角 -
+- 数字、单位、专有名词保留原文
+</TypeRules>
+`.trim()
+
+/**
  * Faithful mode: Strict fidelity to OCR text
  * Rules:
  * - R1: Only use text from OCR, no additions or guesses
