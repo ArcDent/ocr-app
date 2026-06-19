@@ -9,7 +9,7 @@ import { useSettingsStore } from './stores/useSettingsStore'
 
 export default function App() {
   const [isConfigOpen, setIsConfigOpen] = useState(false)
-  
+
 
   // Settings state
   const { loadSettings, isLoaded: isSettingsLoaded } = useSettingsStore()
@@ -43,18 +43,19 @@ export default function App() {
   const hasQueuedFiles = jobList.length > 0 || pendingFiles.length > 0
 
   const handleExport = async () => {
-    // We would ideally let the user pick a directory, but for simplicity
-    // we'll use a default export behavior based on the store's capability
-    // A proper implementation would use an IPC call to show a directory picker
     try {
-      const { success, exportedCount } = await exportBatch('')
+      // Request directory picker via IPC
+      const outputDir = await window.electron.ipcRenderer.invoke('dialog:pick-export-dir')
+      if (!outputDir) return // User cancelled
+
+      const { success, exportedCount } = await exportBatch(outputDir)
       if (success) {
-        alert(`Successfully exported ${exportedCount} results!`)
+        alert(`成功导出 ${exportedCount} 个结果！`)
       } else {
-        alert('Export completed with some errors.')
+        alert('导出完成，但部分文件失败。')
       }
     } catch (err) {
-      alert('Failed to export: ' + (err as Error).message)
+      alert('导出失败: ' + (err as Error).message)
     }
   }
 
@@ -72,75 +73,78 @@ export default function App() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-100 overflow-hidden" onDragOver={handleDragOver} onDrop={handleDrop}>
+    <div className="h-screen flex flex-col bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 overflow-hidden" onDragOver={handleDragOver} onDrop={handleDrop}>
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shrink-0 shadow-sm z-10">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-md flex items-center justify-center">
-            <span className="text-white font-bold text-lg">O</span>
+      <header className="bg-white/80 backdrop-blur-md border-b border-slate-200/60 px-6 py-4 flex items-center justify-between shrink-0 shadow-sm z-10">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center shadow-md">
+            <span className="text-white font-bold text-xl">文</span>
           </div>
-          <h1 className="text-lg font-bold text-gray-800">OCR & Document Structure App</h1>
+          <div>
+            <h1 className="text-xl font-bold text-slate-800 tracking-tight">智能文档识别系统</h1>
+            <p className="text-xs text-amber-600">OCR + AI 结构化处理</p>
+          </div>
         </div>
         <button
           onClick={() => setIsConfigOpen(true)}
-          className="p-2 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-full transition-colors"
-          title="Settings"
+          className="p-2.5 text-slate-600 hover:text-slate-800 hover:bg-amber-50 rounded-xl transition-all duration-200"
+          title="设置"
         >
           <Settings className="w-5 h-5" />
         </button>
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden gap-4 p-4">
         {/* Left Panel: Controls & Queue */}
-        <div className="w-80 flex flex-col bg-white border-r border-gray-200 z-0">
+        <div className="w-80 flex flex-col bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200/60 overflow-hidden">
           {/* Controls */}
-          <div className="p-4 border-b border-gray-200">
+          <div className="p-5 border-b border-slate-200/60">
             <div className="flex gap-2 mb-4">
               <button
                 onClick={() => pickFiles('files')}
                 disabled={isProcessing}
-                className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl text-sm font-medium text-blue-700 hover:from-blue-100 hover:to-indigo-100 disabled:opacity-50 transition-all duration-200 shadow-sm"
               >
                 <Upload className="w-4 h-4" />
-                Files
+                选择文件
               </button>
               <button
                 onClick={() => pickFiles('directory')}
                 disabled={isProcessing}
-                className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl text-sm font-medium text-purple-700 hover:from-purple-100 hover:to-pink-100 disabled:opacity-50 transition-all duration-200 shadow-sm"
               >
                 <Folder className="w-4 h-4" />
-                Folder
+                选择文件夹
               </button>
             </div>
 
             <div className="mb-4">
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
-                Processing Mode
+              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2.5">
+                处理模式
               </label>
-              <div className="flex rounded-md shadow-sm">
+              <div className="flex rounded-xl shadow-sm overflow-hidden border border-slate-200">
                 <button
                   onClick={() => setMode('faithful')}
                   disabled={isProcessing}
-                  className={`flex-1 py-1.5 text-sm font-medium border rounded-l-md ${
+                  className={`flex-1 py-2.5 text-sm font-medium transition-all duration-200 ${
                     mode === 'faithful'
-                      ? 'bg-blue-50 border-blue-500 text-blue-700 z-10'
-                      : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
+                      : 'bg-white text-slate-700 hover:bg-slate-50'
                   }`}
                 >
-                  Faithful
+                  忠实提取
                 </button>
                 <button
                   onClick={() => setMode('enhanced')}
                   disabled={isProcessing}
-                  className={`flex-1 py-1.5 text-sm font-medium border-t border-b border-r rounded-r-md ${
+                  className={`flex-1 py-2.5 text-sm font-medium border-l border-slate-200 transition-all duration-200 ${
                     mode === 'enhanced'
-                      ? 'bg-blue-50 border-blue-500 text-blue-700 z-10'
-                      : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
+                      : 'bg-white text-slate-700 hover:bg-slate-50'
                   }`}
                 >
-                  Enhanced
+                  增强摘要
                 </button>
               </div>
             </div>
@@ -149,18 +153,18 @@ export default function App() {
               <button
                 onClick={startBatch}
                 disabled={!hasQueuedFiles}
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 disabled:bg-blue-300 transition-colors shadow-sm"
+                className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 disabled:from-slate-300 disabled:to-slate-400 transition-all duration-200 shadow-lg hover:shadow-xl disabled:shadow-none"
               >
-                <Play className="w-4 h-4" />
-                Start Processing
+                <Play className="w-5 h-5" />
+                开始处理
               </button>
             ) : (
               <button
                 onClick={cancelBatch}
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-red-50 text-red-700 border border-red-200 rounded-md font-medium hover:bg-red-100 transition-colors"
+                className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-red-50 to-orange-50 text-red-700 border-2 border-red-300 rounded-xl font-semibold hover:from-red-100 hover:to-orange-100 transition-all duration-200 shadow-sm"
               >
-                <StopCircle className="w-4 h-4" />
-                Cancel Processing
+                <StopCircle className="w-5 h-5" />
+                取消处理
               </button>
             )}
           </div>
@@ -179,7 +183,7 @@ export default function App() {
         </div>
 
         {/* Right Panel: Result Details */}
-        <div className="flex-1 flex flex-col bg-gray-50 overflow-hidden">
+        <div className="flex-1 flex flex-col bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200/60 overflow-hidden">
           <div className="flex-1 overflow-hidden">
             <ResultDetail
               result={selectedJobId ? results[selectedJobId] || null : null}
@@ -187,14 +191,14 @@ export default function App() {
           </div>
 
           {/* Bottom Action Bar */}
-          <div className="bg-white border-t border-gray-200 p-3 flex justify-end shrink-0">
+          <div className="bg-gradient-to-r from-slate-50 to-blue-50 border-t border-slate-200/60 p-4 flex justify-end shrink-0">
             <button
               onClick={handleExport}
               disabled={Object.keys(results).length === 0 || isProcessing}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none disabled:opacity-50 transition-colors"
+              className="flex items-center gap-2 px-5 py-2.5 border-2 border-emerald-300 shadow-sm text-sm font-semibold rounded-xl text-emerald-700 bg-gradient-to-r from-emerald-50 to-teal-50 hover:from-emerald-100 hover:to-teal-100 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
             >
               <Download className="w-4 h-4" />
-              Export All Results
+              导出所有结果
             </button>
           </div>
         </div>
