@@ -24,6 +24,17 @@ src/
 
 ## 最近操作
 
+- **2026-06-20**: Electron portable exe 构建配置（全部完成）
+  - **技术方案**: electron-forge v7 + @electron-forge/maker-squirrel (Squirrel.Windows)
+  - **配置文件**:
+    - `forge.config.js`: packager + maker + plugin 配置
+    - `package.json`: 添加 productName、config.forge、make/package 脚本、3 个 devDependencies
+    - `resources/`: 图标目录（临时使用 Electron 默认图标）
+  - **构建命令**: `npm run make` → 生成 `dist/make/squirrel.windows/x64/OCR-App-Setup.exe`
+  - **已知限制**: WSL UNC 路径（\\wsl.localhost\...）无法运行 npm install，需在 Windows 原生环境或 WSL 原生路径执行
+  - **图标设计**: 已选定琥珀蜂蜜主题（橙黄渐变 + 白色"文"字），待实际生成 .ico 文件
+  - **当前状态**: 配置完整，文档齐全，可在 Windows 环境执行构建
+
 - **2026-06-20**: 前端主题重构为温暖色系（全部完成）
   - **设计方案**：从蓝色系重构为琥珀蜂蜜主题（amber-honey），保持功能完整性
   - **配色映射**：
@@ -100,13 +111,14 @@ src/
 ## 下一步
 
 **立即**：
-1. 构建 portable exe：打包 Electron 应用为独立可执行文件（需编写构建配置）
-2. 真实 API 联调：配置真实 TextIn + LLM 凭证，跑通选文件→OCR→结构化→摘要→导出→历史全链路
-3. 清理 `store.test.ts` 的 newStore 未用变量 + uuid Uint8Array tsc 噪音
+1. 在 Windows 原生环境执行 `npm install` 安装 electron-forge 依赖
+2. 执行 `npm run make` 构建 portable exe 并测试
+3. （可选）制作正式图标：256x256 PNG，琥珀到黄色渐变背景，白色"文"字，转换为 .ico 多尺寸格式
 
 **后续**：
+- 真实 API 联调：配置真实 TextIn + LLM 凭证，跑通全链路
 - Phase 7：集成测试（happy path）+ 用户文档
-- 可选：移除 `uuid` 依赖（已改用 crypto.randomUUID，package.json 的 uuid 可删，但需确认无其他引用）
+- 清理 `store.test.ts` 的 newStore 未用变量
 
 ## 关键发现
 
