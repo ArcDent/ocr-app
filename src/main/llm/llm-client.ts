@@ -1,4 +1,4 @@
-import type { ChatMessage } from './types'
+import type { ChatMessage, DocType } from './types'
 
 /**
  * LLM API configuration
@@ -142,6 +142,24 @@ export class LlmClient {
       return match[1].trim()
     }
     return undefined
+  }
+
+  /**
+   * Extract document type from LLM response.
+   * Looks for <type>...</type> tag and validates against known DocType values.
+   * @param rawResponse - Raw response text from LLM
+   * @returns Validated DocType, or 'unknown' if tag missing or value invalid
+   */
+  extractType(rawResponse: string): DocType {
+    const match = rawResponse.match(/<type>\s*([a-z]+)\s*<\/type>/)
+    if (match && match[1] !== undefined) {
+      const value = match[1]
+      const valid: DocType[] = ['dialogue', 'kv', 'list', 'prose', 'mixed']
+      if (valid.includes(value as DocType)) {
+        return value as DocType
+      }
+    }
+    return 'unknown'
   }
 
   /**

@@ -401,6 +401,43 @@ Step 3: conclude
     })
   })
 
+  describe('extractType', () => {
+    it('should extract dialogue type', () => {
+      expect(client.extractType('<type>dialogue</type>')).toBe('dialogue')
+    })
+    it('should extract kv type', () => {
+      expect(client.extractType('<type>kv</type>')).toBe('kv')
+    })
+    it('should extract list type', () => {
+      expect(client.extractType('<type>list</type>')).toBe('list')
+    })
+    it('should extract prose type', () => {
+      expect(client.extractType('<type>prose</type>')).toBe('prose')
+    })
+    it('should extract mixed type', () => {
+      expect(client.extractType('<type>mixed</type>')).toBe('mixed')
+    })
+    it('should extract type from response with other tags', () => {
+      const resp = '<thoughts>分析</thoughts><type>kv</type><result>发票：1</result>'
+      expect(client.extractType(resp)).toBe('kv')
+    })
+    it('should trim whitespace around type value', () => {
+      expect(client.extractType('<type>  kv  </type>')).toBe('kv')
+    })
+    it('should return unknown when type tag missing', () => {
+      expect(client.extractType('<thoughts>x</thoughts><result>y</result>')).toBe('unknown')
+    })
+    it('should return unknown when type value invalid', () => {
+      expect(client.extractType('<type>table</type>')).toBe('unknown')
+    })
+    it('should return unknown for empty type tag', () => {
+      expect(client.extractType('<type></type>')).toBe('unknown')
+    })
+    it('should only extract first type tag if multiple', () => {
+      expect(client.extractType('<type>kv</type><type>prose</type>')).toBe('kv')
+    })
+  })
+
   describe('testConnection', () => {
     it('should return success when connection works', async () => {
       const mockResponse = {
