@@ -10,3 +10,7 @@ coverage/
 .env.local
 .superpowers/
 .env
+
+# Keep resources directory but ignore large assets temporarily
+resources/*.ico
+!resources/.gitkeep
