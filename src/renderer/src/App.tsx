@@ -17,6 +17,7 @@ export default function App() {
   // OCR state
   const {
     jobs,
+    pendingFiles,
     results,
     isProcessing,
     mode,
@@ -39,6 +40,7 @@ export default function App() {
 
   // Convert jobs record to array for the list
   const jobList = Object.values(jobs)
+  const hasQueuedFiles = jobList.length > 0 || pendingFiles.length > 0
 
   const handleExport = async () => {
     // We would ideally let the user pick a directory, but for simplicity
@@ -146,7 +148,7 @@ export default function App() {
             {!isProcessing ? (
               <button
                 onClick={startBatch}
-                disabled={jobList.length === 0}
+                disabled={!hasQueuedFiles}
                 className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 disabled:bg-blue-300 transition-colors shadow-sm"
               >
                 <Play className="w-4 h-4" />
@@ -167,6 +169,7 @@ export default function App() {
           <div className="flex-1 overflow-hidden">
             <FileQueueList
               jobs={jobList}
+              pendingFiles={pendingFiles}
               selectedJobId={selectedJobId}
               onSelectJob={selectJob}
               onClear={clearJobs}
