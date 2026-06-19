@@ -104,7 +104,7 @@ export default function App() {
               <button
                 onClick={() => pickFiles('files')}
                 disabled={isProcessing}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl text-sm font-medium text-blue-700 hover:from-blue-100 hover:to-indigo-100 disabled:opacity-50 transition-all duration-200 shadow-sm"
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 rounded-xl text-sm font-medium text-amber-700 hover:from-amber-100 hover:to-orange-100 disabled:opacity-50 transition-all duration-200 shadow-sm"
               >
                 <Upload className="w-4 h-4" />
                 选择文件
@@ -112,7 +112,7 @@ export default function App() {
               <button
                 onClick={() => pickFiles('directory')}
                 disabled={isProcessing}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl text-sm font-medium text-purple-700 hover:from-purple-100 hover:to-pink-100 disabled:opacity-50 transition-all duration-200 shadow-sm"
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 bg-gradient-to-r from-orange-50 to-yellow-50 border border-orange-300 rounded-xl text-sm font-medium text-orange-700 hover:from-orange-100 hover:to-yellow-100 disabled:opacity-50 transition-all duration-200 shadow-sm"
               >
                 <Folder className="w-4 h-4" />
                 选择文件夹
