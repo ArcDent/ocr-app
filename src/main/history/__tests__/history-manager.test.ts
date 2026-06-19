@@ -1,238 +1,242 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import * as fs from 'fs/promises';
-import * as path from 'path';
-import { HistoryManager } from '../history-manager';
-import { JobResult } from '../types';
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import * as fs from 'fs/promises'
+import * as path from 'path'
+import { HistoryManager } from '../history-manager'
+import { JobResult } from '../../../shared/types'
 
-// Mock electron-store
-const mockStoreGet = vi.fn();
-const mockStoreSet = vi.fn();
+const mockStoreGet = vi.fn()
+const mockStoreSet = vi.fn()
 
-vi.mock('electron-store', () => {
-  return {
-    default: vi.fn().mockImplementation(() => ({
-      get: mockStoreGet,
-      set: mockStoreSet
-    }))
-  };
-});
+vi.mock('electron-store', () => ({
+  default: vi.fn().mockImplementation(() => ({
+    get: mockStoreGet,
+    set: mockStoreSet,
+  })),
+}))
 
-// Mock fs/promises
-vi.mock('fs/promises', () => {
-  return {
-    access: vi.fn(),
-    mkdir: vi.fn(),
-    writeFile: vi.fn(),
-    readFile: vi.fn(),
-    rm: vi.fn()
-  };
-});
+vi.mock('fs/promises', () => ({
+  access: vi.fn(),
+  mkdir: vi.fn().mockResolvedValue(undefined),
+  writeFile: vi.fn().mockResolvedValue(undefined),
+  readFile: vi.fn(),
+  rm: vi.fn().mockResolvedValue(undefined),
+}))
 
 describe('HistoryManager', () => {
-  let manager: HistoryManager;
-  const userDataPath = '/mock/userData';
+  let manager: HistoryManager
+  const userDataPath = '/mock/userData'
 
   beforeEach(() => {
-    vi.clearAllMocks();
-    mockStoreGet.mockReturnValue([]);
-    manager = new HistoryManager(userDataPath);
-  });
+    vi.clearAllMocks()
+    mockStoreGet.mockReturnValue([])
+    manager = new HistoryManager(userDataPath)
+  })
+
+  const makeResult = (overrides: Partial<JobResult> = {}): JobResult => ({
+    jobId: 'job-1',
+    fileName: 'test.pdf',
+    rawText: 'raw text',
+    structuredText: '# structured',
+    summary: '# summary',
+    mode: 'faithful',
+    hasPlaceholderWarning: false,
+    createdAt: 1000,
+    ...overrides,
+  })
 
   describe('saveResult', () => {
-    it('should save a full job result and metadata', async () => {
-      const mockResult: JobResult = {
-        jobId: 'job-1',
-        fileName: 'test.pdf',
-        fileSize: 1024,
-        status: 'success',
-        timestamp: 1000,
-        rawOutput: 'raw text',
-        structuredOutput: '# structured',
-        summaryOutput: '# summary',
-        structuredThoughts: 'thoughts 1',
-        summaryThoughts: 'thoughts 2'
-      };
+    it('writes five files and stores HistoryItem with absolute paths', async () => {
+      const result = makeResult({
+        structuredThoughts: 's-thoughts',
+        summaryThoughts: 'sum-thoughts',
+      })
 
-      // Mock access to throw so mkdir gets called
-      vi.mocked(fs.access).mockRejectedValue(new Error('ENOENT'));
-      
-      await manager.saveResult(mockResult);
+      await manager.saveResult(result)
 
-      // Verify directory creation
-      expect(fs.mkdir).toHaveBeenCalledWith(path.join(userDataPath, 'ocr-results'), { recursive: true });
-      expect(fs.mkdir).toHaveBeenCalledWith(path.join(userDataPath, 'ocr-results', 'job-1'), { recursive: true });
+      const jobDir = path.join(userDataPath, 'ocr-results', 'job-1')
+      expect(fs.mkdir).toHaveBeenCalledWith(jobDir, { recursive: true })
+      expect(fs.writeFile).toHaveBeenCalledWith(path.join(jobDir, 'raw.txt'), 'raw text', 'utf-8')
+      expect(fs.writeFile).toHaveBeenCalledWith(path.join(jobDir, 'structured.md'), '# structured', 'utf-8')
+      expect(fs.writeFile).toHaveBeenCalledWith(path.join(jobDir, 'summary.md'), '# summary', 'utf-8')
+      expect(fs.writeFile).toHaveBeenCalledWith(path.join(jobDir, 'structured-thoughts.txt'), 's-thoughts', 'utf-8')
+      expect(fs.writeFile).toHaveBeenCalledWith(path.join(jobDir, 'summary-thoughts.txt'), 'sum-thoughts', 'utf-8')
 
-      // Verify file saving
-      expect(fs.writeFile).toHaveBeenCalledWith(
-        path.join(userDataPath, 'ocr-results', 'job-1', 'raw.txt'),
-        'raw text',
-        'utf-8'
-      );
-      expect(fs.writeFile).toHaveBeenCalledWith(
-        path.join(userDataPath, 'ocr-results', 'job-1', 'structured.md'),
-        '# structured',
-        'utf-8'
-      );
-      expect(fs.writeFile).toHaveBeenCalledWith(
-        path.join(userDataPath, 'ocr-results', 'job-1', 'summary.md'),
-        '# summary',
-        'utf-8'
-      );
-      expect(fs.writeFile).toHaveBeenCalledWith(
-        path.join(userDataPath, 'ocr-results', 'job-1', 'structured-thoughts.txt'),
-        'thoughts 1',
-        'utf-8'
-      );
-      expect(fs.writeFile).toHaveBeenCalledWith(
-        path.join(userDataPath, 'ocr-results', 'job-1', 'summary-thoughts.txt'),
-        'thoughts 2',
-        'utf-8'
-      );
+      expect(mockStoreSet).toHaveBeenCalledWith(
+        'history',
+        expect.arrayContaining([
+          expect.objectContaining({
+            jobId: 'job-1',
+            fileName: 'test.pdf',
+            mode: 'faithful',
+            rawTextPath: path.join(jobDir, 'raw.txt'),
+            structuredTextPath: path.join(jobDir, 'structured.md'),
+            summaryPath: path.join(jobDir, 'summary.md'),
+            structuredThoughtsPath: path.join(jobDir, 'structured-thoughts.txt'),
+            summaryThoughtsPath: path.join(jobDir, 'summary-thoughts.txt'),
+          }),
+        ])
+      )
+    })
 
-      // Verify store update
-      expect(mockStoreSet).toHaveBeenCalledWith('history', expect.arrayContaining([
-        expect.objectContaining({
-          jobId: 'job-1',
-          fileName: 'test.pdf',
-          status: 'success',
-          hasRawOutput: true,
-          hasStructuredOutput: true,
-          hasSummaryOutput: true,
-          files: {
-            raw: 'raw.txt',
-            structured: 'structured.md',
-            summary: 'summary.md',
-            structuredThoughts: 'structured-thoughts.txt',
-            summaryThoughts: 'summary-thoughts.txt'
-          }
-        })
-      ]));
-    });
+    it('omits optional files when fields missing', async () => {
+      const result = makeResult({ structuredThoughts: undefined, summaryThoughts: undefined })
 
-    it('should handle failed jobs with no output', async () => {
-      const mockResult: JobResult = {
-        jobId: 'job-failed',
-        fileName: 'test.pdf',
-        status: 'failed',
-        errorMessage: 'Something went wrong',
-        timestamp: 1000
-      };
+      await manager.saveResult(result)
 
-      await manager.saveResult(mockResult);
+      const jobDir = path.join(userDataPath, 'ocr-results', 'job-1')
+      expect(fs.writeFile).toHaveBeenCalledWith(path.join(jobDir, 'raw.txt'), 'raw text', 'utf-8')
+      expect(fs.writeFile).not.toHaveBeenCalledWith(
+        path.join(jobDir, 'structured-thoughts.txt'),
+        expect.anything(),
+        expect.anything()
+      )
+      expect(fs.writeFile).not.toHaveBeenCalledWith(
+        path.join(jobDir, 'summary-thoughts.txt'),
+        expect.anything(),
+        expect.anything()
+      )
 
-      expect(fs.writeFile).not.toHaveBeenCalled();
-      
-      expect(mockStoreSet).toHaveBeenCalledWith('history', expect.arrayContaining([
-        expect.objectContaining({
-          jobId: 'job-failed',
-          status: 'failed',
-          errorMessage: 'Something went wrong',
-          hasRawOutput: false,
-          hasStructuredOutput: false,
-          hasSummaryOutput: false
-        })
-      ]));
-    });
+      const saved = mockStoreSet.mock.calls[0][1][0]
+      expect(saved.structuredThoughtsPath).toBeUndefined()
+      expect(saved.summaryThoughtsPath).toBeUndefined()
+    })
 
-    it('should limit history to 100 items and delete oldest directories', async () => {
-      // Create 100 existing items
-      const existingHistory = Array.from({ length: 100 }, (_, i) => ({
+    it('limits to 100 items and deletes oldest directory', async () => {
+      const existing = Array.from({ length: 100 }, (_, i) => ({
         jobId: `job-${i}`,
-        timestamp: i, // Older items have smaller timestamps
-        fileName: 'test.pdf',
-        status: 'success',
-        hasRawOutput: true,
-        hasStructuredOutput: false,
-        hasSummaryOutput: false
-      }));
+        fileName: 'x.pdf',
+        mode: 'faithful' as const,
+        hasPlaceholderWarning: false,
+        createdAt: i,
+        rawTextPath: `/p/raw.txt`,
+        structuredTextPath: `/p/structured.md`,
+        summaryPath: `/p/summary.md`,
+      }))
+      mockStoreGet.mockReturnValue(existing)
 
-      mockStoreGet.mockReturnValue(existingHistory);
+      await manager.saveResult(makeResult({ jobId: 'job-new', createdAt: 1000 }))
 
-      const newResult: JobResult = {
-        jobId: 'job-new',
-        fileName: 'new.pdf',
-        status: 'success',
-        timestamp: 1000 // Newest
-      };
-
-      await manager.saveResult(newResult);
-
-      // Verify oldest was deleted from store
-      const setCall = mockStoreSet.mock.calls[0];
-      const savedHistory = setCall[1];
-      
-      expect(savedHistory.length).toBe(100);
-      expect(savedHistory[0].jobId).toBe('job-new'); // Newest first
-      expect(savedHistory.find((h: any) => h.jobId === 'job-0')).toBeUndefined(); // Oldest removed
-
-      // Verify directory was deleted
+      const saved = mockStoreSet.mock.calls[0][1]
+      expect(saved.length).toBe(100)
+      expect(saved[0].jobId).toBe('job-new')
+      expect(saved.find((h: any) => h.jobId === 'job-0')).toBeUndefined()
       expect(fs.rm).toHaveBeenCalledWith(
         path.join(userDataPath, 'ocr-results', 'job-0'),
         { recursive: true, force: true }
-      );
-    });
-    
-    it('should update existing job if same ID is saved again', async () => {
-      const existingHistory = [{
-        jobId: 'job-1',
-        timestamp: 1000,
-        fileName: 'test.pdf',
-        status: 'processing',
-        hasRawOutput: false,
-        hasStructuredOutput: false,
-        hasSummaryOutput: false
-      }];
-      
-      mockStoreGet.mockReturnValue(existingHistory);
-      
-      const newResult: JobResult = {
-        jobId: 'job-1',
-        fileName: 'test.pdf',
-        status: 'success',
-        timestamp: 2000,
-        rawOutput: 'done'
-      };
-      
-      await manager.saveResult(newResult);
-      
-      const setCall = mockStoreSet.mock.calls[0];
-      const savedHistory = setCall[1];
-      
-      expect(savedHistory.length).toBe(1);
-      expect(savedHistory[0].status).toBe('success');
-      expect(savedHistory[0].hasRawOutput).toBe(true);
-    });
-  });
+      )
+    })
+
+    it('updates existing job when same ID saved again', async () => {
+      mockStoreGet.mockReturnValue([
+        {
+          jobId: 'job-1',
+          fileName: 'old.pdf',
+          mode: 'faithful',
+          hasPlaceholderWarning: false,
+          createdAt: 500,
+          rawTextPath: '/p/raw.txt',
+          structuredTextPath: '/p/structured.md',
+          summaryPath: '/p/summary.md',
+        },
+      ])
+
+      await manager.saveResult(makeResult({ jobId: 'job-1', fileName: 'new.pdf', createdAt: 2000 }))
+
+      const saved = mockStoreSet.mock.calls[0][1]
+      expect(saved.length).toBe(1)
+      expect(saved[0].fileName).toBe('new.pdf')
+      expect(saved[0].createdAt).toBe(2000)
+    })
+  })
 
   describe('listHistory', () => {
-    it('should return sorted history from store', () => {
-      const mockHistory = [
-        { jobId: 'job-1', timestamp: 1000 },
-        { jobId: 'job-3', timestamp: 3000 },
-        { jobId: 'job-2', timestamp: 2000 }
-      ];
-      
-      mockStoreGet.mockReturnValue(mockHistory);
-      
-      const result = manager.listHistory();
-      
-      expect(result).toEqual([
-        { jobId: 'job-3', timestamp: 3000 },
-        { jobId: 'job-2', timestamp: 2000 },
-        { jobId: 'job-1', timestamp: 1000 }
-      ]);
-      expect(mockStoreGet).toHaveBeenCalledWith('history', []);
-    });
-  });
+    it('returns history sorted by createdAt descending', () => {
+      mockStoreGet.mockReturnValue([
+        { jobId: 'a', createdAt: 100, mode: 'faithful' },
+        { jobId: 'c', createdAt: 300, mode: 'faithful' },
+        { jobId: 'b', createdAt: 200, mode: 'faithful' },
+      ])
 
-  describe('getResult', () => {
-    it('should return null if job not found', async () => {
-      mockStoreGet.mockReturnValue([]);
-      const result = await manager.getResult('non-existent');
-      expect(result).toBeNull();
-    });
+      const result = manager.listHistory()
 
-    it('should load job with files from disk', async () => {
-    });
-  });
-});
+      expect(result.map((h) => h.jobId)).toEqual(['c', 'b', 'a'])
+    })
+  })
+
+  describe('getJob', () => {
+    it('returns null when job not found', async () => {
+      mockStoreGet.mockReturnValue([])
+      const result = await manager.getJob('nope')
+      expect(result).toBeNull()
+    })
+
+    it('returns null when a required file is missing (data corruption)', async () => {
+      mockStoreGet.mockReturnValue([
+        {
+          jobId: 'job-1',
+          fileName: 'test.pdf',
+          mode: 'faithful',
+          hasPlaceholderWarning: false,
+          createdAt: 1000,
+          rawTextPath: '/mock/raw.txt',
+          structuredTextPath: '/mock/structured.md',
+          summaryPath: '/mock/summary.md',
+        },
+      ])
+      vi.mocked(fs.readFile).mockRejectedValue(new Error('ENOENT'))
+
+      const result = await manager.getJob('job-1')
+      expect(result).toBeNull()
+    })
+
+    it('assembles JobResult from disk files', async () => {
+      mockStoreGet.mockReturnValue([
+        {
+          jobId: 'job-1',
+          fileName: 'test.pdf',
+          mode: 'enhanced',
+          hasPlaceholderWarning: true,
+          createdAt: 1000,
+          rawTextPath: '/mock/raw.txt',
+          structuredTextPath: '/mock/structured.md',
+          summaryPath: '/mock/summary.md',
+          structuredThoughtsPath: '/mock/s-thoughts.txt',
+        },
+      ])
+      vi.mocked(fs.readFile).mockImplementation(async (filePath: any) => {
+        if (filePath.endsWith('raw.txt')) return 'raw'
+        if (filePath.endsWith('structured.md')) return 'structured'
+        if (filePath.endsWith('summary.md')) return 'summary'
+        if (filePath.endsWith('s-thoughts.txt')) return 's-thoughts'
+        throw new Error('ENOENT')
+      })
+
+      const result = await manager.getJob('job-1')
+
+      expect(result).toEqual({
+        jobId: 'job-1',
+        fileName: 'test.pdf',
+        rawText: 'raw',
+        structuredText: 'structured',
+        structuredThoughts: 's-thoughts',
+        summary: 'summary',
+        summaryThoughts: undefined,
+        mode: 'enhanced',
+        hasPlaceholderWarning: true,
+        createdAt: 1000,
+      })
+    })
+  })
+
+  describe('clearHistory', () => {
+    it('clears store and removes results directory', async () => {
+      await manager.clearHistory()
+
+      expect(mockStoreSet).toHaveBeenCalledWith('history', [])
+      expect(fs.rm).toHaveBeenCalledWith(
+        path.join(userDataPath, 'ocr-results'),
+        { recursive: true, force: true }
+      )
+    })
+  })
+})
