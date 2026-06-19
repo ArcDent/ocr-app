@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { Orchestrator } from '../orchestrator'
 import { TextInClient } from '../../ocr/textin-client'
 import { LlmClient } from '../../llm/llm-client'
+import { structureText, summarize } from '../../llm/chunking'
 import { randomUUID } from 'crypto'
 
 vi.mock('../../ocr/textin-client')
@@ -10,7 +11,11 @@ vi.mock('crypto', () => ({
   randomUUID: vi.fn(() => 'mock-uuid-1234')
 }))
 vi.mock('../../llm/chunking', () => ({
-  splitIntoChunks: (text: string, _threshold: number) => [text.substring(0, text.length/2), text.substring(text.length/2)]
+  splitIntoChunks: (text: string, _t: number) => [text],
+  structureText: vi.fn(async (_raw: string, _mode: string, _th: number, _llm: unknown) =>
+    ({ text: 'structured text', thoughts: 'thoughts', type: 'kv' })),
+  summarize: vi.fn(async (_text: string, _th: number, _llm: unknown) =>
+    ({ text: 'summary text', thoughts: 'summary thoughts', type: 'prose' })),
 }))
 
 describe('Orchestrator', () => {
@@ -25,14 +30,17 @@ describe('Orchestrator', () => {
 
     mockTextIn = new TextInClient({ appId: 'appId', secretCode: 'secret', baseUrl: 'http://api' }) as any
     mockLlm = new LlmClient({ baseUrl: 'http://api', apiKey: 'key', model: 'model' }) as any
-    
+
     mockTextIn.recognizeFile = vi.fn().mockResolvedValue('raw ocr text')
     mockTextIn.isRecoverableError = vi.fn().mockReturnValue(false)
-    
-    mockLlm.callLlm = vi.fn().mockResolvedValue('<thoughts>thoughts</thoughts><result>structured text</result>')
-    mockLlm.extractResult = vi.fn().mockReturnValue('structured text')
-    mockLlm.extractThoughts = vi.fn().mockReturnValue('thoughts')
+
+    mockLlm.callLlm = vi.fn()
+    mockLlm.extractResult = vi.fn()
+    mockLlm.extractThoughts = vi.fn()
     mockLlm.isRecoverableError = vi.fn().mockReturnValue(false)
+
+    vi.mocked(structureText).mockResolvedValue({ text: 'structured text', thoughts: 'thoughts', type: 'kv' })
+    vi.mocked(summarize).mockResolvedValue({ text: 'summary text', thoughts: 'summary thoughts', type: 'prose' })
 
     orchestrator = new Orchestrator(mockTextIn, mockLlm, { concurrency: 2, chunkThreshold: 100 })
   })
@@ -40,19 +48,19 @@ describe('Orchestrator', () => {
   it('should process a job successfully', async () => {
     const onProgress = vi.fn()
     const stats = await orchestrator.startBatch(['/path/file1.pdf'], 'faithful', onProgress)
-    
+
     expect(stats).toEqual({ total: 1, success: 1, failed: 0 })
     expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ stage: 'queued' }))
     expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ stage: 'ocr' }))
     expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ stage: 'structuring' }))
     expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ stage: 'summarizing' }))
     expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ stage: 'done' }))
-    
+
     const result = orchestrator.getResult('mock-uuid-1234')
     expect(result).toBeDefined()
     expect(result?.rawText).toBe('raw ocr text')
     expect(result?.structuredText).toBe('structured text')
-    expect(result?.summary).toBe('structured text')
+    expect(result?.summary).toBe('summary text')
     expect(result?.hasPlaceholderWarning).toBe(false)
   })
 
@@ -66,7 +74,7 @@ describe('Orchestrator', () => {
       .mockResolvedValueOnce('success text')
 
     const stats = await orchestrator.startBatch(['/file1.pdf', '/file2.pdf'], 'faithful', onProgress)
-    
+
     expect(stats).toEqual({ total: 2, success: 1, failed: 1 })
     expect(orchestrator.getJobStatus('mock-uuid-1')?.stage).toBe('error')
     expect(orchestrator.getJobStatus('mock-uuid-1')?.error).toBe('Fatal error')
@@ -103,7 +111,7 @@ describe('Orchestrator', () => {
 
     const batchPromise = orchestrator.startBatch(['/file1.pdf'], 'faithful', onProgress)
     orchestrator.cancel()
-    
+
     const stats = await batchPromise
     expect(stats.failed).toBe(1)
     expect(orchestrator.getJobStatus('mock-uuid-1234')?.stage).toBe('error')
@@ -112,23 +120,36 @@ describe('Orchestrator', () => {
 
   it('should detect placeholders', async () => {
     const onProgress = vi.fn()
-    mockLlm.extractResult.mockReturnValueOnce('text [待补充] more text')
+    vi.mocked(structureText).mockResolvedValue({ text: 'text [待补充] more', thoughts: undefined, type: 'kv' })
 
     await orchestrator.startBatch(['/file1.pdf'], 'faithful', onProgress)
     const result = orchestrator.getResult('mock-uuid-1234')
     expect(result?.hasPlaceholderWarning).toBe(true)
   })
 
-  it('should split long text into chunks', async () => {
+  it('should delegate structuring to structureText with mode and threshold', async () => {
     const onProgress = vi.fn()
     const longText = 'A'.repeat(150)
     mockTextIn.recognizeFile.mockResolvedValue(longText)
-    mockLlm.extractResult.mockReturnValue('structured chunk')
+    vi.mocked(structureText).mockResolvedValue({ text: 'structured', thoughts: undefined, type: 'prose' })
+    vi.mocked(summarize).mockResolvedValue({ text: 'summary', thoughts: undefined, type: 'prose' })
 
-    await orchestrator.startBatch(['/file1.pdf'], 'faithful', onProgress)
-    expect(mockLlm.callLlm).toHaveBeenCalledTimes(3) // 2 chunks + 1 summary
-    const result = orchestrator.getResult('mock-uuid-1234')
-    expect(result?.structuredText).toBe('structured chunk\n\nstructured chunk')
+    await orchestrator.startBatch(['/file1.pdf'], 'enhanced', onProgress)
+    expect(structureText).toHaveBeenCalledWith(longText, 'enhanced', 100, mockLlm)
+    expect(summarize).toHaveBeenCalledWith('structured', 100, mockLlm)
+  })
+
+  it('should retry structureText on recoverable LLM error', async () => {
+    const onProgress = vi.fn()
+    mockLlm.isRecoverableError.mockReturnValue(true)
+    vi.mocked(structureText)
+      .mockRejectedValueOnce(new Error('LLM network timeout'))
+      .mockResolvedValueOnce({ text: 'structured', thoughts: undefined, type: 'kv' })
+    vi.mocked(summarize).mockResolvedValue({ text: 'summary', thoughts: undefined, type: 'prose' })
+
+    const stats = await orchestrator.startBatch(['/file1.pdf'], 'faithful', onProgress)
+    expect(stats.success).toBe(1)
+    expect(structureText).toHaveBeenCalledTimes(2)
   })
 
   it('should enforce concurrency limits', async () => {

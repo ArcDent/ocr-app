@@ -3,7 +3,7 @@ import { LlmClient } from '../llm/llm-client'
 import { OcrJob, JobResult, ProcessMode, JobStage } from '../../shared/types'
 import { randomUUID } from 'crypto'
 import * as path from 'path'
-import { splitIntoChunks } from '../llm/chunking'
+import { structureText, summarize } from '../llm/chunking'
 import { assertNoPlaceholder } from '../llm/placeholder-guard'
 
 export class Orchestrator {
@@ -144,50 +144,16 @@ export class Orchestrator {
     return await this.textin.recognizeFile(job.filePath)
   }
 
-  private async runStructuring(job: OcrJob, rawText: string, _mode: ProcessMode, onProgress: (job: OcrJob) => void) {
+  private async runStructuring(job: OcrJob, rawText: string, mode: ProcessMode, onProgress: (job: OcrJob) => void) {
     this.updateJob(job, 'structuring', onProgress)
-    
-    // Check if chunking is needed
-    if (rawText.length > this.settings.chunkThreshold) {
-      const chunks = splitIntoChunks(rawText, this.settings.chunkThreshold)
-      let combinedText = ''
-      
-      for (const chunk of chunks) {
-        if (this.isCancelled) throw new Error('Cancelled')
-        // Create messages array as expected by LlmClient
-        const messages = [
-          { role: 'user' as const, content: chunk }
-        ]
-        // Get raw response
-        const rawResponse = await this.llm.callLlm(messages)
-        // Extract result and thoughts
-        const text = this.llm.extractResult(rawResponse)
-        
-        combinedText += text + '\n\n'
-      }
-      return { text: combinedText.trim(), thoughts: undefined }
-    } else {
-      const messages = [
-        { role: 'user' as const, content: rawText }
-      ]
-      const rawResponse = await this.llm.callLlm(messages)
-      return {
-        text: this.llm.extractResult(rawResponse),
-        thoughts: this.llm.extractThoughts(rawResponse)
-      }
-    }
+    const result = await structureText(rawText, mode, this.settings.chunkThreshold, this.llm)
+    return { text: result.text, thoughts: result.thoughts }
   }
 
   private async runSummarizing(job: OcrJob, structuredText: string, onProgress: (job: OcrJob) => void) {
     this.updateJob(job, 'summarizing', onProgress)
-    const messages = [
-      { role: 'user' as const, content: `Please summarize the following text:\n\n${structuredText}` }
-    ]
-    const rawResponse = await this.llm.callLlm(messages)
-    return {
-      text: this.llm.extractResult(rawResponse),
-      thoughts: this.llm.extractThoughts(rawResponse)
-    }
+    const result = await summarize(structuredText, this.settings.chunkThreshold, this.llm)
+    return { text: result.text, thoughts: result.thoughts }
   }
 
   private async withRetry<T>(fn: () => Promise<T>, isRecoverable: (e: unknown) => boolean): Promise<T> {
