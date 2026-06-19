@@ -1,0 +1,566 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { LlmClient } from '../llm-client'
+import type { LlmConfig, ConnectionTestResult } from '../llm-client'
+import type { ChatMessage } from '../types'
+
+describe('LlmClient', () => {
+  const mockConfig: LlmConfig = {
+    baseUrl: 'https://api.example.com',
+    apiKey: 'test-api-key',
+    model: 'gpt-4',
+  }
+
+  let client: LlmClient
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    client = new LlmClient(mockConfig)
+    global.fetch = vi.fn()
+  })
+
+  describe('callLlm', () => {
+    const testMessages: ChatMessage[] = [
+      { role: 'system', content: 'You are a helpful assistant' },
+      { role: 'user', content: 'Hello' },
+    ]
+
+    it('should successfully call LLM API', async () => {
+      const mockResponse = {
+        choices: [
+          {
+            message: {
+              content: 'Hello! How can I help you?',
+            },
+          },
+        ],
+      }
+
+      vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      } as Response)
+
+      const result = await client.callLlm(testMessages)
+
+      expect(result).toBe('Hello! How can I help you?')
+      expect(fetch).toHaveBeenCalledWith(
+        'https://api.example.com/chat/completions',
+        expect.objectContaining({
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer test-api-key',
+          },
+          body: JSON.stringify({
+            model: 'gpt-4',
+            messages: testMessages,
+            temperature: 0,
+          }),
+        })
+      )
+    })
+
+    it('should include Authorization header', async () => {
+      const mockResponse = {
+        choices: [{ message: { content: 'response' } }],
+      }
+
+      vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      } as Response)
+
+      await client.callLlm(testMessages)
+
+      expect(fetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: 'Bearer test-api-key',
+          }),
+        })
+      )
+    })
+
+    it('should send correct request body with temperature 0', async () => {
+      const mockResponse = {
+        choices: [{ message: { content: 'response' } }],
+      }
+
+      vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      } as Response)
+
+      await client.callLlm(testMessages)
+
+      const callArgs = vi.mocked(fetch).mock.calls[0]
+      const requestBody = JSON.parse(callArgs[1]?.body as string)
+
+      expect(requestBody).toEqual({
+        model: 'gpt-4',
+        messages: testMessages,
+        temperature: 0,
+      })
+    })
+
+    it('should throw error for HTTP 500', async () => {
+      vi.mocked(fetch).mockResolvedValue({
+        ok: false,
+        status: 500,
+      } as Response)
+
+      await expect(client.callLlm(testMessages)).rejects.toThrow(
+        'LLM API returned HTTP 500'
+      )
+    })
+
+    it('should throw error for HTTP 401', async () => {
+      vi.mocked(fetch).mockResolvedValue({
+        ok: false,
+        status: 401,
+      } as Response)
+
+      await expect(client.callLlm(testMessages)).rejects.toThrow(
+        'LLM API returned HTTP 401'
+      )
+    })
+
+    it('should throw error for HTTP 404', async () => {
+      vi.mocked(fetch).mockResolvedValue({
+        ok: false,
+        status: 404,
+      } as Response)
+
+      await expect(client.callLlm(testMessages)).rejects.toThrow(
+        'LLM API returned HTTP 404'
+      )
+    })
+
+    it('should throw error when choices array is missing', async () => {
+      const mockResponse = {}
+
+      vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      } as Response)
+
+      await expect(client.callLlm(testMessages)).rejects.toThrow(
+        'Invalid API response: missing choices array'
+      )
+    })
+
+    it('should throw error when choices array is empty', async () => {
+      const mockResponse = {
+        choices: [],
+      }
+
+      vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      } as Response)
+
+      await expect(client.callLlm(testMessages)).rejects.toThrow(
+        'Invalid API response: missing choices array'
+      )
+    })
+
+    it('should throw error when message content is missing', async () => {
+      const mockResponse = {
+        choices: [
+          {
+            message: {},
+          },
+        ],
+      }
+
+      vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      } as Response)
+
+      await expect(client.callLlm(testMessages)).rejects.toThrow(
+        'Invalid API response: missing message content'
+      )
+    })
+
+    it('should throw error when message content is not a string', async () => {
+      const mockResponse = {
+        choices: [
+          {
+            message: {
+              content: 123,
+            },
+          },
+        ],
+      }
+
+      vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      } as Response)
+
+      await expect(client.callLlm(testMessages)).rejects.toThrow(
+        'Invalid API response: missing message content'
+      )
+    })
+
+    it('should throw timeout error after 120 seconds', async () => {
+      vi.useFakeTimers()
+
+      vi.mocked(fetch).mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            setTimeout(
+              () =>
+                resolve({
+                  ok: true,
+                  status: 200,
+                  json: async () => ({
+                    choices: [{ message: { content: 'response' } }],
+                  }),
+                } as Response),
+              130000
+            )
+          })
+      )
+
+      const promise = client.callLlm(testMessages)
+
+      await vi.advanceTimersByTimeAsync(120000)
+
+      await expect(promise).rejects.toThrow('LLM API request timeout (120000ms)')
+
+      vi.useRealTimers()
+    })
+
+    it('should use custom timeout when provided', async () => {
+      vi.useFakeTimers()
+
+      const customClient = new LlmClient(mockConfig, { timeout: 30000 })
+
+      vi.mocked(fetch).mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            setTimeout(
+              () =>
+                resolve({
+                  ok: true,
+                  status: 200,
+                  json: async () => ({
+                    choices: [{ message: { content: 'response' } }],
+                  }),
+                } as Response),
+              40000
+            )
+          })
+      )
+
+      const promise = customClient.callLlm(testMessages)
+
+      await vi.advanceTimersByTimeAsync(30000)
+
+      await expect(promise).rejects.toThrow('LLM API request timeout (30000ms)')
+
+      vi.useRealTimers()
+    })
+
+    it('should handle trailing slash in baseUrl', async () => {
+      const clientWithSlash = new LlmClient({
+        ...mockConfig,
+        baseUrl: 'https://api.example.com/',
+      })
+
+      const mockResponse = {
+        choices: [{ message: { content: 'response' } }],
+      }
+
+      vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      } as Response)
+
+      await clientWithSlash.callLlm(testMessages)
+
+      expect(fetch).toHaveBeenCalledWith(
+        'https://api.example.com/chat/completions',
+        expect.any(Object)
+      )
+    })
+
+    it('should propagate network errors', async () => {
+      vi.mocked(fetch).mockRejectedValue(new Error('Network error'))
+
+      await expect(client.callLlm(testMessages)).rejects.toThrow('Network error')
+    })
+  })
+
+  describe('extractResult', () => {
+    it('should extract content from <result> tags', () => {
+      const response = '<result>Structured data here</result>'
+      expect(client.extractResult(response)).toBe('Structured data here')
+    })
+
+    it('should extract multiline content from <result> tags', () => {
+      const response = `<result>
+Line 1
+Line 2
+Line 3
+</result>`
+      expect(client.extractResult(response)).toBe('Line 1\nLine 2\nLine 3')
+    })
+
+    it('should handle <result> tags with surrounding text', () => {
+      const response =
+        'Some intro text\n<result>Extracted content</result>\nSome outro text'
+      expect(client.extractResult(response)).toBe('Extracted content')
+    })
+
+    it('should trim whitespace from extracted result', () => {
+      const response = '<result>  \n  Content with spaces  \n  </result>'
+      expect(client.extractResult(response)).toBe('Content with spaces')
+    })
+
+    it('should return full response when <result> tags are missing', () => {
+      const response = 'No tags here, just plain text'
+      expect(client.extractResult(response)).toBe('No tags here, just plain text')
+    })
+
+    it('should return trimmed full response when tags are missing', () => {
+      const response = '  No tags here  '
+      expect(client.extractResult(response)).toBe('No tags here')
+    })
+
+    it('should handle empty <result> tags', () => {
+      const response = '<result></result>'
+      expect(client.extractResult(response)).toBe('')
+    })
+
+    it('should handle <result> tags with only whitespace', () => {
+      const response = '<result>   \n   </result>'
+      expect(client.extractResult(response)).toBe('')
+    })
+
+    it('should only extract first <result> if multiple exist', () => {
+      const response = '<result>First</result> middle <result>Second</result>'
+      expect(client.extractResult(response)).toBe('First')
+    })
+  })
+
+  describe('extractThoughts', () => {
+    it('should extract content from <thoughts> tags', () => {
+      const response = '<thoughts>Thinking process here</thoughts>'
+      expect(client.extractThoughts(response)).toBe('Thinking process here')
+    })
+
+    it('should extract multiline content from <thoughts> tags', () => {
+      const response = `<thoughts>
+Step 1: analyze
+Step 2: decide
+Step 3: conclude
+</thoughts>`
+      expect(client.extractThoughts(response)).toBe(
+        'Step 1: analyze\nStep 2: decide\nStep 3: conclude'
+      )
+    })
+
+    it('should handle <thoughts> tags with surrounding text', () => {
+      const response =
+        'Some intro\n<thoughts>Internal reasoning</thoughts>\nSome outro'
+      expect(client.extractThoughts(response)).toBe('Internal reasoning')
+    })
+
+    it('should trim whitespace from extracted thoughts', () => {
+      const response = '<thoughts>  \n  Thoughts with spaces  \n  </thoughts>'
+      expect(client.extractThoughts(response)).toBe('Thoughts with spaces')
+    })
+
+    it('should return undefined when <thoughts> tags are missing', () => {
+      const response = 'No thoughts tags here'
+      expect(client.extractThoughts(response)).toBeUndefined()
+    })
+
+    it('should handle empty <thoughts> tags', () => {
+      const response = '<thoughts></thoughts>'
+      expect(client.extractThoughts(response)).toBe('')
+    })
+
+    it('should handle <thoughts> tags with only whitespace', () => {
+      const response = '<thoughts>   \n   </thoughts>'
+      expect(client.extractThoughts(response)).toBe('')
+    })
+
+    it('should only extract first <thoughts> if multiple exist', () => {
+      const response = '<thoughts>First</thoughts> middle <thoughts>Second</thoughts>'
+      expect(client.extractThoughts(response)).toBe('First')
+    })
+
+    it('should work independently of <result> tags', () => {
+      const response =
+        '<thoughts>Thinking</thoughts>\n<result>Result</result>'
+      expect(client.extractThoughts(response)).toBe('Thinking')
+    })
+  })
+
+  describe('testConnection', () => {
+    it('should return success when connection works', async () => {
+      const mockResponse = {
+        choices: [{ message: { content: 'test response' } }],
+      }
+
+      vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      } as Response)
+
+      const result = await client.testConnection()
+
+      expect(result).toEqual({
+        success: true,
+        message: 'LLM API connection successful',
+      })
+    })
+
+    it('should send test message during connection test', async () => {
+      const mockResponse = {
+        choices: [{ message: { content: 'test response' } }],
+      }
+
+      vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      } as Response)
+
+      await client.testConnection()
+
+      const callArgs = vi.mocked(fetch).mock.calls[0]
+      const requestBody = JSON.parse(callArgs[1]?.body as string)
+
+      expect(requestBody.messages).toEqual([{ role: 'user', content: 'test' }])
+    })
+
+    it('should return failure for HTTP error', async () => {
+      vi.mocked(fetch).mockResolvedValue({
+        ok: false,
+        status: 500,
+      } as Response)
+
+      const result = await client.testConnection()
+
+      expect(result).toEqual({
+        success: false,
+        message: 'LLM API returned HTTP 500',
+      })
+    })
+
+    it('should return failure for network error', async () => {
+      vi.mocked(fetch).mockRejectedValue(new Error('Network error'))
+
+      const result = await client.testConnection()
+
+      expect(result).toEqual({
+        success: false,
+        message: 'Network error',
+      })
+    })
+
+    it('should return failure for authentication error', async () => {
+      vi.mocked(fetch).mockResolvedValue({
+        ok: false,
+        status: 401,
+      } as Response)
+
+      const result = await client.testConnection()
+
+      expect(result).toEqual({
+        success: false,
+        message: 'LLM API returned HTTP 401',
+      })
+    })
+
+    it('should handle non-Error thrown values', async () => {
+      vi.mocked(fetch).mockRejectedValue('string error')
+
+      const result = await client.testConnection()
+
+      expect(result).toEqual({
+        success: false,
+        message: 'Unknown connection error',
+      })
+    })
+  })
+
+  describe('isRecoverableError', () => {
+    it('should return true for AbortError (timeout)', () => {
+      const error = new Error('timeout')
+      error.name = 'AbortError'
+
+      expect(client.isRecoverableError(error)).toBe(true)
+    })
+
+    it('should return true for 5xx HTTP errors', () => {
+      const error500 = new Error('LLM API returned HTTP 500')
+      const error503 = new Error('LLM API returned HTTP 503')
+      const error599 = new Error('LLM API returned HTTP 599')
+
+      expect(client.isRecoverableError(error500)).toBe(true)
+      expect(client.isRecoverableError(error503)).toBe(true)
+      expect(client.isRecoverableError(error599)).toBe(true)
+    })
+
+    it('should return false for 4xx HTTP errors', () => {
+      const error400 = new Error('LLM API returned HTTP 400')
+      const error401 = new Error('LLM API returned HTTP 401')
+      const error404 = new Error('LLM API returned HTTP 404')
+      const error499 = new Error('LLM API returned HTTP 499')
+
+      expect(client.isRecoverableError(error400)).toBe(false)
+      expect(client.isRecoverableError(error401)).toBe(false)
+      expect(client.isRecoverableError(error404)).toBe(false)
+      expect(client.isRecoverableError(error499)).toBe(false)
+    })
+
+    it('should return true for network errors', () => {
+      const fetchError = new Error('fetch failed')
+      const networkError = new Error('network timeout')
+      const econnrefused = new Error('ECONNREFUSED')
+      const etimedout = new Error('ETIMEDOUT')
+
+      expect(client.isRecoverableError(fetchError)).toBe(true)
+      expect(client.isRecoverableError(networkError)).toBe(true)
+      expect(client.isRecoverableError(econnrefused)).toBe(true)
+      expect(client.isRecoverableError(etimedout)).toBe(true)
+    })
+
+    it('should return false for non-Error objects', () => {
+      expect(client.isRecoverableError('string error')).toBe(false)
+      expect(client.isRecoverableError(123)).toBe(false)
+      expect(client.isRecoverableError(null)).toBe(false)
+      expect(client.isRecoverableError(undefined)).toBe(false)
+    })
+
+    it('should return false for errors without recoverable patterns', () => {
+      const genericError = new Error('Something went wrong')
+      const parseError = new Error('Invalid JSON')
+
+      expect(client.isRecoverableError(genericError)).toBe(false)
+      expect(client.isRecoverableError(parseError)).toBe(false)
+    })
+
+    it('should return false for empty error message', () => {
+      const emptyError = new Error('')
+
+      expect(client.isRecoverableError(emptyError)).toBe(false)
+    })
+  })
+})
