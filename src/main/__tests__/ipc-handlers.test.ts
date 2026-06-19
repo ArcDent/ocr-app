@@ -271,10 +271,9 @@ describe('registerIpcHandlers', () => {
       })
     })
 
-    it('still sends ON_BATCH_DONE when startBatch rejects', async () => {
-      // The finally block nulls orchestrator but does NOT send ON_BATCH_DONE on
-      // rejection — startBatch rejection propagates to ipcMain.handle. Verify
-      // the normal path's finally does not crash; rejection is surfaced.
+    it('propagates startBatch rejection (no ON_BATCH_DONE sent)', async () => {
+      // The finally block nulls orchestrator but does NOT send ON_BATCH_DONE
+      // on rejection — startBatch rejection propagates to ipcMain.handle.
       ;(configStore.getSettings as any).mockReturnValue(baseSettings)
       const startBatch = vi.fn().mockRejectedValue(new Error('batch boom'))
       ;(Orchestrator as any).mockImplementation(() => ({
