@@ -24,6 +24,20 @@ src/
 
 ## 最近操作
 
+- **2026-06-20**: 完成 IPC 集成与类型对齐（Task 1-15 全部完成）
+  - **类型契约层（Task 1-7）**：`shared/types.ts` 补 HistoryItem；重写 `history-manager.ts` 用 shared JobResult/HistoryItem + 五份落盘 + 100 条淘汰 + getJob 数据损坏返回 null，删 `history/types.ts`；重写 `markdown-exporter.ts` 用 spec 字段 structuredText/summary；修 `orchestrator.ts` 的 `assertNoPlaceholder().clean` 调用 + 新增 `getJobs()`；三模块测试改 spec 字段
+  - **接线层（Task 8-14）**：新建 `ipc-handlers.ts`（12 通道 + 批量后遍历 getJobs 存 done 项到 history + 配置缺失 throw + OCR_GET_RESULT 内存优先 + EXPORT_BATCH 从历史取）；`index.ts` 注册；`useOcrStore` 去 temp ID 改 pendingFiles；`FileQueueList` 扩展 pendingFiles props（不可选中）；`App.tsx` 接线
+  - **dev 验证阻塞修复**：uuid v14 纯 ESM 与 CJS 主进程不兼容（`ERR_REQUIRE_ESM`），改用 `crypto.randomUUID()`（Node 16.7+ 内置，Electron 28 支持），去掉 uuid 依赖
+  - **当前状态**：230 passed / 0 failed（14 test files）；`npm run dev` 主进程启动成功，IPC 注册生效，不再报 `No handler registered for 'settings:get'`；WSL2 无 GPU 环境的 GPU/网络服务错误属环境限制，非逻辑问题
+  - **已知遗留**：`App.tsx` `exportBatch('')` 传空 outputDir（导出会 mkdir 失败，需后续加目录选择 IPC）；`store.test.ts` 2 个 newStore 未用 + uuid Uint8Array tsc 噪音（运行时无影响）；worktree 残留待清理
+
+- **2026-06-20**: Task 9 完成 — 新建 `src/main/__tests__/ipc-handlers.test.ts`（26 tests）
+  - Mock 策略：顶层 `vi.mock` + `vi.hoisted`（解决 `mockHandle`/`mockSend`/`historyInstance` 在 hoisted 工厂中引用的 TDZ 问题）
+  - HistoryManager mock 用单例对象（`vi.fn(() => historyInstance)`）绕过 `registerIpcHandlers` 内 `if (!historyManager)` 守卫；`beforeEach` 重置单例方法实现
+  - Orchestrator / TextInClient / LlmClient mock 用 `vi.mocked().mockImplementation` 按测试配置
+  - 覆盖 8 个通道关键行为：SETTINGS_GET/SET、TEST_OCR/LLM（缺键 + 成功 + throw）、OCR_START_BATCH（配置缺失 throw、批量后存 done 项到 saveResult、send ON_BATCH_DONE、全 error 不存、rejection 传播）、OCR_GET_RESULT（内存/历史/null）、EXPORT_BATCH（无结果/有结果/过滤 null/throw/0 success）、HISTORY_LIST/GET/CLEAR、OCR_CANCEL
+  - 当前状态：220 passed / 0 failed（13 test files，WSL 终端验证）
+
 - **2026-06-19**: 系统性修复测试基础设施（第三轮修正）
   - **orchestrator.test.ts**：`beforeEach` 加 `vi.mocked(uuid.v4).mockReturnValue('mock-uuid-1234')`，解决 `clearAllMocks` 后上一测试的 `mockImplementation` 覆盖残留导致后续测试 `uuidv4()` 返回错误值、`getResult('mock-uuid-1234')` 找不到（3 个失败）
   - **llm-client / textin-client 4 个超时测试**：unhandled rejection 根因是 fake timers 时序竞争——`advanceTimersByTimeAsync` 触发 abort → 源码 throw timeout → callLlm promise reject，但此时测试尚未 await 该 promise，微任务窗内 unhandled。修复：`const promise = ...; promise.catch(() => {})` 预标记 handled，原 promise 引用保留给 `expect(promise).rejects.toThrow(...)`。`mockFetchHanging` 简化回 `return p`
@@ -49,21 +63,19 @@ src/
 
 ## 进行中
 
-**测试修复已完成**，所有代码变更已写入。当前在 `master` 分支（存在未提交的测试修复改动）。
-
-**待验证**：在 WSL 原生终端运行 `npm test -- --run` 确认 21 个失败全消。
+IPC 集成与类型对齐已全部完成（Task 1-15）。`master` 分支当前在 `ae74927`。
 
 ## 下一步
 
 **立即**：
-1. 在 WSL 原生终端运行：`cd ~/github/ocr-app && npm test -- --run`
-2. 确认所有 163 个测试通过（预期：9 个 failed 套件 → 0，21 个 failed tests → 0）
-3. 若通过，提交这批测试修复
+1. 真实 API 联调：在 WSL 原生终端 `npm run dev`，配置真实 TextIn + LLM 凭证，跑通选文件→OCR→结构化→摘要→导出→历史全链路
+2. 修复 `App.tsx` `exportBatch('')` 空 outputDir 问题（加目录选择 IPC 或让用户输入路径）
+3. 清理 `store.test.ts` 的 newStore 未用变量 + uuid Uint8Array tsc 噪音
+4. 清理 `.claude/worktrees/busy-wilbur-4a6988` 残留 worktree
 
 **后续**：
-- 注意当前在 `master` 分支，不是之前的 `claude/busy-wilbur-4a6988` worktree
-- 项目根存在 `.claude/worktrees/busy-wilbur-4a6988` 残留 worktree 目录，可清理
-- 完成 Phase 7：集成测试 + 用户文档
+- Phase 7：集成测试（happy path）+ 用户文档
+- 可选：移除 `uuid` 依赖（已改用 crypto.randomUUID，package.json 的 uuid 可删，但需确认无其他引用）
 
 ## 关键发现
 
@@ -72,3 +84,7 @@ src/
 2. **ESM mock 陷阱**：`require('uuid').v4 = ...` 在 uuid v14+ (纯 ESM) 下失效，ESM namespace exports 为只读。必须用 `vi.mock('uuid', () => ({ v4: vi.fn() }))` + `vi.mocked(uuid.v4).mockImplementation(...)`。
 3. **纯 type 的值访问**：`export type JobStage = 'done' | 'error' | ...` 在运行时被擦除，`JobStage.DONE` → `undefined`。测试中的字面量类型必须直接用字符串值。
 4. **fake timers + fetch mock**：`vi.useFakeTimers()` 不拦截 AbortController，但 mock fetch 必须监听 `init.signal`，abort 时 reject AbortError——否则 `setTimeout → controller.abort()` 触发后 fetch promise 永久 hanging。
+5. **vi.mock hoisting + 共享 mock 对象**：`vi.mock` 工厂被 hoist 到文件顶部，工厂内不能引用未初始化的 `const`/`let`（TDZ）。共享 mock 对象（如 `mockHandle`、`historyInstance`）需用 `vi.hoisted(() => ({ ... }))` 声明，使其在 hoisted 工厂执行前可用。
+6. **单例守卫绕过**：`registerIpcHandlers` 内 `if (!historyManager) historyManager = new HistoryManager(...)` 守卫使重复调用不重建实例。测试若需重置 mock 实现，不能靠重 `new`，应让 mock 工厂返回固定单例对象，`beforeEach` 重置单例方法。
+7. **uuid v14 纯 ESM 与 CJS 主进程不兼容**：`electron-vite` 把 main 进程打成 CJS（package.json type: commonjs），`import { v4 } from 'uuid'` 编译成 `require('uuid')`，uuid v14 是纯 ESM (`"type": "module"`) 触发 `ERR_REQUIRE_ESM` 崩溃。解决：改用 Node 内置 `crypto.randomUUID()`（16.7+，Electron 28 的 Node 18 支持），去掉 uuid 依赖。测试 mock 改 `vi.mock('crypto', () => ({ randomUUID: vi.fn() }))`。
+8. **Windows 端 npm 不可靠**：WSL2 项目通过 UNC 路径 `\\wsl.localhost\...` 访问时，Windows 端 npm install 会因 `.bin` 符号链接是目录而 `EISDIR` 崩溃，可能损坏 node_modules。npm/install 操作必须在 WSL 原生终端（Linux 路径）跑。
