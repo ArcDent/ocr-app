@@ -232,4 +232,7 @@ describe('HistoryManager', () => {
       expect(result).toBeNull();
     });
 
-    it('should load job with files from disk
+    it('should load job with files from disk', async () => {
+    });
+  });
+});
