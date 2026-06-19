@@ -54,6 +54,7 @@ vi.mock('../export/markdown-exporter', () => ({
 
 // ============= Imports after mocks =============
 import { registerIpcHandlers } from '../ipc-handlers'
+import { dialog } from 'electron'
 import { configStore } from '../store'
 import { TextInClient } from '../ocr/textin-client'
 import { LlmClient } from '../llm/llm-client'
@@ -176,6 +177,53 @@ describe('registerIpcHandlers', () => {
       const result = await handlers[IPC_CHANNELS.SETTINGS_TEST_LLM]({ sender: mockSend })
 
       expect(result).toEqual({ success: false, message: '401 unauthorized' })
+    })
+  })
+
+  // ---------- OCR_PICK_FILES ----------
+  describe('OCR_PICK_FILES', () => {
+    it('returns selected file paths for files type with image/pdf filters', async () => {
+      vi.mocked(dialog.showOpenDialog).mockResolvedValue({
+        canceled: false,
+        filePaths: ['/a.pdf', '/b.png'],
+      } as any)
+      const result = await handlers[IPC_CHANNELS.OCR_PICK_FILES]({}, { type: 'files' })
+      expect(result).toEqual(['/a.pdf', '/b.png'])
+      expect(dialog.showOpenDialog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          properties: ['openFile', 'multiSelections'],
+          filters: [
+            { name: 'Images & PDFs', extensions: ['jpg', 'jpeg', 'png', 'pdf'] },
+          ],
+        })
+      )
+    })
+
+    it('uses openDirectory property and no filters for directory type', async () => {
+      vi.mocked(dialog.showOpenDialog).mockResolvedValue({
+        canceled: false,
+        filePaths: ['/dir'],
+      } as any)
+      const result = await handlers[IPC_CHANNELS.OCR_PICK_FILES](
+        {},
+        { type: 'directory' }
+      )
+      expect(result).toEqual(['/dir'])
+      expect(dialog.showOpenDialog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          properties: ['openDirectory'],
+          filters: [],
+        })
+      )
+    })
+
+    it('returns empty array when canceled', async () => {
+      vi.mocked(dialog.showOpenDialog).mockResolvedValue({
+        canceled: true,
+        filePaths: [],
+      } as any)
+      const result = await handlers[IPC_CHANNELS.OCR_PICK_FILES]({}, { type: 'files' })
+      expect(result).toEqual([])
     })
   })
 
@@ -308,6 +356,61 @@ describe('registerIpcHandlers', () => {
       ;(historyInstance.getJob as any).mockResolvedValue(fake)
       const result = await handlers[IPC_CHANNELS.OCR_GET_RESULT]({}, { jobId: 'j1' })
       expect(result).toEqual(fake)
+    })
+
+    it('returns in-memory result first and does not consult history when memory has it', async () => {
+      // Set up an orchestrator whose getResult returns a known object for 'j1'.
+      // historyManager also has a DIFFERENT object for 'j1' — it must NOT be returned.
+      ;(configStore.getSettings as any).mockReturnValue(baseSettings)
+      const memoryResult = { jobId: 'j1', from: 'memory' }
+      const getResult = vi
+        .fn()
+        .mockImplementation((id: string) =>
+          id === 'j1' ? memoryResult : undefined
+        )
+      ;(Orchestrator as any).mockImplementation(() => ({
+        startBatch: vi.fn().mockResolvedValue({ total: 1, success: 1, failed: 0 }),
+        getJobs: vi.fn().mockReturnValue([
+          { jobId: 'j1', fileName: 'f.pdf', stage: 'done' },
+        ]),
+        getResult,
+        cancel: vi.fn(),
+      }))
+      ;(TextInClient as any).mockImplementation(() => ({ testConnection: vi.fn() }))
+      ;(LlmClient as any).mockImplementation(() => ({ testConnection: vi.fn() }))
+      ;(historyInstance.getJob as any).mockResolvedValue({
+        jobId: 'j1',
+        from: 'history',
+      })
+
+      // Run a START_BATCH to install the orchestrator as currentOrchestrator.
+      // The finally block will null it after completion, but OCR_GET_RESULT is
+      // called synchronously right after the await resolves while the test still
+      // holds the orchestrator reference — BUT the handler nulled it in finally.
+      // To keep currentOrchestrator alive we use a never-resolving startBatch:
+      const startBatchNever = vi.fn(() => new Promise(() => {}))
+      ;(Orchestrator as any).mockImplementation(() => ({
+        startBatch: startBatchNever,
+        getJobs: vi.fn().mockReturnValue([]),
+        getResult,
+        cancel: vi.fn(),
+      }))
+
+      const event = { sender: { send: mockSend } }
+      const batchPromise = handlers[IPC_CHANNELS.OCR_START_BATCH](
+        event,
+        { paths: ['/f.pdf'], mode: 'faithful' }
+      )
+      batchPromise.catch(() => {})
+
+      // startBatch is pending → currentOrchestrator is still set.
+      const result = await handlers[IPC_CHANNELS.OCR_GET_RESULT](
+        {},
+        { jobId: 'j1' }
+      )
+
+      expect(result).toEqual(memoryResult)
+      expect(historyInstance.getJob).not.toHaveBeenCalled()
     })
   })
 
@@ -445,6 +548,34 @@ describe('registerIpcHandlers', () => {
       await expect(
         handlers[IPC_CHANNELS.OCR_CANCEL]({ sender: mockSend })
       ).resolves.toBeUndefined()
+    })
+
+    it('calls cancel on the active orchestrator', async () => {
+      // To keep currentOrchestrator non-null during the test, the orchestrator's
+      // startBatch must NOT resolve — the handler's finally block nulls
+      // currentOrchestrator once startBatch settles.
+      ;(configStore.getSettings as any).mockReturnValue(baseSettings)
+      const cancelSpy = vi.fn()
+      ;(Orchestrator as any).mockImplementation(() => ({
+        startBatch: vi.fn(() => new Promise(() => {})), // never resolves
+        getJobs: vi.fn().mockReturnValue([]),
+        getResult: vi.fn(),
+        cancel: cancelSpy,
+      }))
+      ;(TextInClient as any).mockImplementation(() => ({ testConnection: vi.fn() }))
+      ;(LlmClient as any).mockImplementation(() => ({ testConnection: vi.fn() }))
+
+      const event = { sender: { send: mockSend } }
+      const batchPromise = handlers[IPC_CHANNELS.OCR_START_BATCH](
+        event,
+        { paths: ['/f.pdf'], mode: 'faithful' }
+      )
+      batchPromise.catch(() => {}) // avoid unhandled rejection noise
+
+      // startBatch is pending → currentOrchestrator is still set.
+      await handlers[IPC_CHANNELS.OCR_CANCEL]({ sender: mockSend })
+
+      expect(cancelSpy).toHaveBeenCalled()
     })
   })
 })
