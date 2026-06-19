@@ -1,8 +1,12 @@
 node_modules/
 out/
 dist/
-.env
+.DS_Store
+*.log
+.vite
+.electron-vite
+coverage/
+.vitest.env
 .env.local
 .superpowers/
-*.log
-.DS_Store
+.env
