@@ -64,7 +64,7 @@ export function ConfigDialog({ isOpen, onClose }: ConfigDialogProps) {
           {/* TextIn OCR Config */}
           <section>
             <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-              <span className="w-1 h-6 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-full"></span>
+              <span className="w-1 h-6 bg-gradient-to-b from-amber-500 to-orange-500 rounded-full"></span>
               TextIn OCR 配置
             </h3>
             <div className="space-y-4">
@@ -150,7 +150,7 @@ export function ConfigDialog({ isOpen, onClose }: ConfigDialogProps) {
           {/* LLM Config */}
           <section>
             <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-              <span className="w-1 h-6 bg-gradient-to-b from-purple-500 to-pink-600 rounded-full"></span>
+              <span className="w-1 h-6 bg-gradient-to-b from-orange-500 to-yellow-500 rounded-full"></span>
               LLM 配置
             </h3>
             <div className="space-y-4">

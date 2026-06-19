@@ -146,6 +146,22 @@ export function registerIpcHandlers() {
     }
   )
 
+  // DIALOG
+  ipcMain.handle(
+    IPC_CHANNELS.DIALOG_PICK_EXPORT_DIR,
+    async (): Promise<IpcResponse['dialog:pick-export-dir']> => {
+      const result = await dialog.showOpenDialog({
+        properties: ['openDirectory', 'createDirectory'],
+        title: '选择导出目录',
+        buttonLabel: '选择',
+      })
+      if (result.canceled || result.filePaths.length === 0) {
+        return null
+      }
+      return result.filePaths[0]
+    }
+  )
+
   // EXPORT
   ipcMain.handle(
     IPC_CHANNELS.EXPORT_BATCH,

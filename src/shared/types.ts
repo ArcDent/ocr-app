@@ -15,6 +15,9 @@ export const IPC_CHANNELS = {
   // Export
   EXPORT_BATCH: 'export:batch',
 
+  // Dialog
+  DIALOG_PICK_EXPORT_DIR: 'dialog:pick-export-dir',
+
   // History
   HISTORY_LIST: 'history:list',
   HISTORY_GET: 'history:get',
@@ -117,6 +120,7 @@ export interface IpcRequest {
   [IPC_CHANNELS.OCR_CANCEL]: void
   [IPC_CHANNELS.OCR_GET_RESULT]: { jobId: string }
   [IPC_CHANNELS.EXPORT_BATCH]: { jobIds: string[]; outputDir: string }
+  [IPC_CHANNELS.DIALOG_PICK_EXPORT_DIR]: void
   [IPC_CHANNELS.HISTORY_LIST]: void
   [IPC_CHANNELS.HISTORY_GET]: { jobId: string }
   [IPC_CHANNELS.HISTORY_CLEAR]: void
@@ -132,6 +136,7 @@ export interface IpcResponse {
   [IPC_CHANNELS.OCR_CANCEL]: void
   [IPC_CHANNELS.OCR_GET_RESULT]: JobResult | null
   [IPC_CHANNELS.EXPORT_BATCH]: { success: boolean; exportedCount: number }
+  [IPC_CHANNELS.DIALOG_PICK_EXPORT_DIR]: string | null
   [IPC_CHANNELS.HISTORY_LIST]: HistoryItem[]
   [IPC_CHANNELS.HISTORY_GET]: JobResult | null
   [IPC_CHANNELS.HISTORY_CLEAR]: void

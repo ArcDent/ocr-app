@@ -191,7 +191,7 @@ export default function App() {
           </div>
 
           {/* Bottom Action Bar */}
-          <div className="bg-gradient-to-r from-slate-50 to-blue-50 border-t border-slate-200/60 p-4 flex justify-end shrink-0">
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-t border-slate-200/60 p-4 flex justify-end shrink-0">
             <button
               onClick={handleExport}
               disabled={Object.keys(results).length === 0 || isProcessing}

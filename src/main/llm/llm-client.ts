@@ -113,14 +113,18 @@ export class LlmClient {
   /**
    * Extract structured result from LLM response
    * Looks for <result>...</result> tags and returns the content inside
+   * Removes any XML-style comments that may appear before or after the content
    * Falls back to full response if tags are missing
    * @param rawResponse - Raw response text from LLM
-   * @returns Extracted result text
+   * @returns Extracted result text without LLM comments
    */
   extractResult(rawResponse: string): string {
     const match = rawResponse.match(/<result>([\s\S]*?)<\/result>/)
     if (match && match[1] !== undefined) {
-      return match[1].trim()
+      let content = match[1].trim()
+      // Remove any XML-style comments like <!-- ... -->
+      content = content.replace(/<!--[\s\S]*?-->/g, '')
+      return content.trim()
     }
     return rawResponse.trim()
   }

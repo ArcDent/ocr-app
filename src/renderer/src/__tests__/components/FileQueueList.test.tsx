@@ -29,7 +29,7 @@ describe('FileQueueList', () => {
         isProcessing={false}
       />
     )
-    expect(screen.getByText('No files queued')).toBeInTheDocument()
+    expect(screen.getByText('暂无文件')).toBeInTheDocument()
   })
 
   it('renders list of jobs', () => {
@@ -43,7 +43,7 @@ describe('FileQueueList', () => {
         isProcessing={true}
       />
     )
-    expect(screen.getByText('Queue (3)')).toBeInTheDocument()
+    expect(screen.getByText(/任务队列/)).toBeInTheDocument()
     expect(screen.getByText('test1.pdf')).toBeInTheDocument()
     expect(screen.getByText('test2.pdf')).toBeInTheDocument()
     expect(screen.getByText('test3.pdf')).toBeInTheDocument()
@@ -60,7 +60,7 @@ describe('FileQueueList', () => {
         isProcessing={false}
       />
     )
-    
+
     fireEvent.click(screen.getByText('test1.pdf'))
     expect(mockOnSelectJob).toHaveBeenCalledWith('1')
   })
@@ -76,8 +76,8 @@ describe('FileQueueList', () => {
         isProcessing={false}
       />
     )
-    
-    fireEvent.click(screen.getByText('Clear'))
+
+    fireEvent.click(screen.getByText('清空'))
     expect(mockOnClear).toHaveBeenCalled()
   })
 
@@ -92,8 +92,8 @@ describe('FileQueueList', () => {
         isProcessing={true}
       />
     )
-    
-    expect(screen.queryByText('Clear')).not.toBeInTheDocument()
+
+    expect(screen.queryByText('清空')).not.toBeInTheDocument()
   })
 
   it('renders pending files without jobId and not clickable', () => {
@@ -110,9 +110,9 @@ describe('FileQueueList', () => {
         isProcessing={false}
       />
     )
-    expect(screen.getByText('Queue (2)')).toBeInTheDocument()
+    expect(screen.getByText(/任务队列/)).toBeInTheDocument()
     expect(screen.getByText('a.pdf')).toBeInTheDocument()
-    expect(screen.getAllByText('Pending')).toHaveLength(2)
+    expect(screen.getAllByText('待处理')).toHaveLength(2)
     // Clicking pending file name should NOT call onSelectJob
     fireEvent.click(screen.getByText('a.pdf'))
     expect(mockOnSelectJob).not.toHaveBeenCalled()

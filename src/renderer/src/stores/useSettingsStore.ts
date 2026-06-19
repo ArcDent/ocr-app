@@ -10,6 +10,7 @@ interface SettingsState {
   // Actions
   loadSettings: () => Promise<void>
   updateSettings: (newSettings: Partial<AppSettings>) => Promise<void>
+  saveSettings: (newSettings: AppSettings) => Promise<void>
   testOcrConnection: () => Promise<{ success: boolean; message: string }>
   testLlmConnection: () => Promise<{ success: boolean; message: string }>
 }
@@ -41,6 +42,18 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       set({ settings: mergedSettings, isLoading: false })
     } catch (err) {
       console.error('Failed to update settings:', err)
+      set({ error: (err as Error).message, isLoading: false })
+    }
+  },
+
+  saveSettings: async (newSettings) => {
+    set({ isLoading: true, error: null })
+    try {
+      // @ts-ignore
+      await window.api.invoke(IPC_CHANNELS.SETTINGS_SET, newSettings)
+      set({ settings: newSettings, isLoading: false })
+    } catch (err) {
+      console.error('Failed to save settings:', err)
       set({ error: (err as Error).message, isLoading: false })
     }
   },
