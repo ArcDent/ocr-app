@@ -187,8 +187,8 @@ describe('structureText', () => {
     await structureText(rawText, mode, 100, mockClient)
 
     const callArgs = vi.mocked(mockClient.callLlm).mock.calls[0][0]
-    // Verify system prompt contains enhanced mode keywords
-    expect(callArgs[0].content).toContain('增强模式')
+    // Verify system prompt contains enhanced mode fidelity rules
+    expect(callArgs[0].content).toContain('高置信度')
   })
 
   it('should return type from extractType for single chunk', async () => {
