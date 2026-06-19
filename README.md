@@ -33,6 +33,38 @@ npm run typecheck
 npm run build
 ```
 
+## Building for Production
+
+### Windows Portable EXE
+
+To build a portable Windows executable:
+
+```bash
+npm run make
+```
+
+This will:
+1. Compile TypeScript/React source code via electron-vite
+2. Package the compiled code into a portable exe using electron-forge
+3. Output the installer to: `dist/make/squirrel.windows/x64/OCR-App-Setup.exe`
+
+**First build takes 5-10 minutes** (downloads Electron binaries). Subsequent builds are faster (~1-2 minutes).
+
+### Build Requirements
+
+- Node.js 16+ 
+- Windows 10/11 x64 (or WSL2 with Windows filesystem access)
+- ~500MB free disk space
+
+### Using the Portable EXE
+
+Double-click `OCR-App-Setup.exe` to install and launch. The app will:
+- Auto-extract to `%LOCALAPPDATA%\OCR-App\`
+- Run without administrator privileges
+- Appear in Windows "Apps & features" for uninstallation
+
+**Note**: If you encounter npm install errors in WSL2 UNC paths (\\wsl.localhost\...), run the build commands from Windows PowerShell or Git Bash on Windows native filesystem instead.
+
 ## Project Structure
 
 ```
