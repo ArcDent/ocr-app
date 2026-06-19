@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { LlmClient } from '../llm-client'
-import type { LlmConfig, ConnectionTestResult } from '../llm-client'
+import type { LlmConfig } from '../llm-client'
 import type { ChatMessage } from '../types'
 
 describe('LlmClient', () => {

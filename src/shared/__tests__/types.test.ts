@@ -161,10 +161,10 @@ describe('IPC Type Maps', () => {
 
   it('should have type-safe IpcResponse mapping', () => {
     const getSettingsResponse: IpcResponse['settings:get'] = { textin: { appId: '', secretCode: '', baseUrl: '' }, llm: { baseUrl: '', apiKey: '', model: '' }, concurrency: 3, chunkThreshold: 12000 }
-    const setSettingsResponse: IpcResponse['settings:set'] = { success: true }
-    
+    const setSettingsResponse: IpcResponse['settings:set'] = undefined as unknown as void
+
     expect(getSettingsResponse.concurrency).toBe(3)
-    expect(setSettingsResponse.success).toBe(true)
+    expect(setSettingsResponse).toBeUndefined()
   })
 
   it('should have type-safe IpcEvents mapping', () => {

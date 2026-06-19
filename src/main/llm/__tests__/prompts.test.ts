@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
 import { buildStructurePrompt, buildSummaryPrompt } from '../prompts'
-import type { ProcessMode } from '../../../shared/types'
 
 describe('Prompt Library', () => {
   describe('buildStructurePrompt', () => {

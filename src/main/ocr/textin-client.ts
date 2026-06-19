@@ -60,7 +60,7 @@ export class TextInClient {
       const response = await fetch(url, {
         method: 'POST',
         headers: this.buildHeaders(),
-        body: fileBuffer,
+        body: fileBuffer as unknown as BodyInit,
         signal: controller.signal,
       })
 
