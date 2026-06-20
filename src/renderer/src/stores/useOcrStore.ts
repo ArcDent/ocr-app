@@ -21,7 +21,7 @@ interface OcrState {
   startBatch: () => Promise<void>
   cancelBatch: () => Promise<void>
   fetchResult: (jobId: string) => Promise<void>
-  exportBatch: (outputDir: string) => Promise<{ success: boolean; exportedCount: number }>
+  exportBatch: (outputDir: string) => Promise<{ success: boolean; exportedCount: number; failedCount: number; error?: string }>
   clearJobs: () => void
 
   handleJobProgress: (job: OcrJob) => void
@@ -111,12 +111,12 @@ export const useOcrStore = create<OcrState>((set, get) => {
 
     exportBatch: async (outputDir) => {
       const jobIds = Object.keys(get().results)
-      if (jobIds.length === 0) return { success: false, exportedCount: 0 }
+      if (jobIds.length === 0) return { success: false, exportedCount: 0, failedCount: 0 }
       try {
         return await (window as any).api.invoke(IPC_CHANNELS.EXPORT_BATCH, { jobIds, outputDir })
       } catch (err) {
         console.error('Failed to export batch:', err)
-        return { success: false, exportedCount: 0 }
+        return { success: false, exportedCount: 0, failedCount: 0, error: (err as Error).message }
       }
     },
 

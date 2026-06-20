@@ -75,4 +75,56 @@ describe('useOcrStore', () => {
     await useOcrStore.getState().startBatch()
     expect(mockInvoke).not.toHaveBeenCalledWith(IPC_CHANNELS.OCR_START_BATCH, expect.anything())
   })
+
+  it('exportBatch returns four-field result on success', async () => {
+    useOcrStore.setState({
+      results: {
+        j1: {
+          jobId: 'j1',
+          fileName: 'f.pdf',
+          rawText: 'r',
+          structuredText: 's',
+          summary: 'sum',
+          mode: 'faithful',
+          createdAt: 0,
+        },
+      },
+    })
+    mockInvoke.mockResolvedValue({ success: true, exportedCount: 1, failedCount: 0 })
+
+    const result = await useOcrStore.getState().exportBatch('/out')
+
+    expect(mockInvoke).toHaveBeenCalledWith(IPC_CHANNELS.EXPORT_BATCH, {
+      jobIds: ['j1'],
+      outputDir: '/out',
+    })
+    expect(result).toEqual({ success: true, exportedCount: 1, failedCount: 0 })
+  })
+
+  it('exportBatch returns error message when invoke throws', async () => {
+    useOcrStore.setState({
+      results: {
+        j1: {
+          jobId: 'j1',
+          fileName: 'f.pdf',
+          rawText: 'r',
+          structuredText: 's',
+          summary: 'sum',
+          mode: 'faithful',
+          createdAt: 0,
+        },
+      },
+    })
+    mockInvoke.mockRejectedValue(new Error('ipc boom'))
+
+    const result = await useOcrStore.getState().exportBatch('/out')
+
+    expect(result).toEqual({ success: false, exportedCount: 0, failedCount: 0, error: 'ipc boom' })
+  })
+
+  it('exportBatch returns empty failure when no results', async () => {
+    const result = await useOcrStore.getState().exportBatch('/out')
+    expect(result).toEqual({ success: false, exportedCount: 0, failedCount: 0 })
+    expect(mockInvoke).not.toHaveBeenCalled()
+  })
 })
