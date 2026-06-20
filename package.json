@@ -1,7 +1,7 @@
 {
   "name": "ocr-app",
   "productName": "OCR App",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "OCR + LLM structured text extraction desktop app",
   "main": "./out/main/index.js",
   "author": "ArcDent",
