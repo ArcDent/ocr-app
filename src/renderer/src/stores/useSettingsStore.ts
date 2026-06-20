@@ -11,8 +11,8 @@ interface SettingsState {
   loadSettings: () => Promise<void>
   updateSettings: (newSettings: Partial<AppSettings>) => Promise<void>
   saveSettings: (newSettings: AppSettings) => Promise<void>
-  testOcrConnection: () => Promise<{ success: boolean; message: string }>
-  testLlmConnection: () => Promise<{ success: boolean; message: string }>
+  testOcrConnection: (currentSettings: AppSettings) => Promise<{ success: boolean; message: string }>
+  testLlmConnection: (currentSettings: AppSettings) => Promise<{ success: boolean; message: string }>
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
@@ -58,7 +58,13 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     }
   },
 
-  testOcrConnection: async () => {
+  testOcrConnection: async (currentSettings) => {
+    try {
+      // @ts-ignore
+      await window.api.invoke(IPC_CHANNELS.SETTINGS_SET, currentSettings)
+    } catch (err) {
+      return { success: false, message: '保存配置失败：' + (err as Error).message }
+    }
     try {
       // @ts-ignore
       return await window.api.invoke(IPC_CHANNELS.SETTINGS_TEST_OCR, undefined)
@@ -67,7 +73,13 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     }
   },
 
-  testLlmConnection: async () => {
+  testLlmConnection: async (currentSettings) => {
+    try {
+      // @ts-ignore
+      await window.api.invoke(IPC_CHANNELS.SETTINGS_SET, currentSettings)
+    } catch (err) {
+      return { success: false, message: '保存配置失败：' + (err as Error).message }
+    }
     try {
       // @ts-ignore
       return await window.api.invoke(IPC_CHANNELS.SETTINGS_TEST_LLM, undefined)
