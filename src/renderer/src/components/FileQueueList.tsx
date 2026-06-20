@@ -1,6 +1,8 @@
 
 import { Check, FileText, Loader2, XCircle, Clock } from 'lucide-react'
+import { useRef } from 'react'
 import { JobStage, OcrJob } from '../../../shared/types'
+import { useScrollOverlay } from '../hooks/useScrollOverlay'
 
 interface PendingFile {
   path: string
@@ -17,6 +19,8 @@ interface FileQueueListProps {
 }
 
 export function FileQueueList({ jobs, pendingFiles, selectedJobId, onSelectJob, onClear, isProcessing }: FileQueueListProps) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  useScrollOverlay(scrollRef)
   const totalCount = jobs.length + pendingFiles.length
 
   if (totalCount === 0) {
@@ -77,7 +81,7 @@ export function FileQueueList({ jobs, pendingFiles, selectedJobId, onSelectJob, 
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto">
         <ul className="divide-y divide-slate-100">
           {pendingFiles.map((file, idx) => (
             <li

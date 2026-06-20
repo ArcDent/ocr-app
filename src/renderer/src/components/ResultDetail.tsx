@@ -1,12 +1,15 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { AlertTriangle, ChevronDown, ChevronRight, Copy, FileText } from 'lucide-react'
 import { JobResult } from '../../../shared/types'
+import { useScrollOverlay } from '../hooks/useScrollOverlay'
 
 interface ResultDetailProps {
   result: JobResult | null
 }
 
 export function ResultDetail({ result }: ResultDetailProps) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  useScrollOverlay(scrollRef)
   const [showThoughts, setShowThoughts] = useState(false)
   const [activeTab, setActiveTab] = useState<'structured' | 'summary' | 'raw'>('structured')
   const [copySuccess, setCopySuccess] = useState(false)
@@ -97,7 +100,7 @@ export function ResultDetail({ result }: ResultDetailProps) {
               <Copy className="w-4 h-4" />
             </button>
           </div>
-          <div className="flex-1 p-6 overflow-y-auto font-mono text-sm whitespace-pre-wrap leading-relaxed text-slate-800">
+          <div ref={scrollRef} className="flex-1 p-6 overflow-y-auto font-mono text-sm whitespace-pre-wrap leading-relaxed text-slate-800">
             {content || <span className="text-slate-400 italic">无内容</span>}
           </div>
         </div>
