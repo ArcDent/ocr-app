@@ -166,18 +166,27 @@ export function registerIpcHandlers() {
   ipcMain.handle(
     IPC_CHANNELS.EXPORT_BATCH,
     async (_, data: IpcRequest['export:batch']): Promise<IpcResponse['export:batch']> => {
-      if (!historyManager) return { success: false, exportedCount: 0 }
+      if (!historyManager) return { success: false, exportedCount: 0, failedCount: 0, error: '历史管理未初始化' }
       const results = await Promise.all(data.jobIds.map((id) => historyManager!.getJob(id)))
       const validResults = results.filter((r): r is NonNullable<typeof r> => r !== null)
       if (validResults.length === 0) {
-        return { success: false, exportedCount: 0 }
+        return { success: false, exportedCount: 0, failedCount: 0, error: '没有可导出的结果' }
       }
       try {
-        const { success } = await exportBatch(validResults, data.outputDir)
-        return { success: success > 0, exportedCount: success }
+        const { success, failed } = await exportBatch(validResults, data.outputDir)
+        return {
+          success: success > 0 && failed === 0,
+          exportedCount: success,
+          failedCount: failed,
+        }
       } catch (error) {
         console.error('Export error:', error)
-        return { success: false, exportedCount: 0 }
+        return {
+          success: false,
+          exportedCount: 0,
+          failedCount: 0,
+          error: error instanceof Error ? error.message : String(error),
+        }
       }
     }
   )

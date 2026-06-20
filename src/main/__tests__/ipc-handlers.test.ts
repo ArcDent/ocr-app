@@ -409,7 +409,7 @@ describe('registerIpcHandlers', () => {
         {},
         { jobIds: ['x'], outputDir: '/out' }
       )
-      expect(result).toEqual({ success: false, exportedCount: 0 })
+      expect(result).toEqual({ success: false, exportedCount: 0, failedCount: 0, error: '没有可导出的结果' })
       expect(exportBatch).not.toHaveBeenCalled()
     })
 
@@ -429,7 +429,7 @@ describe('registerIpcHandlers', () => {
       )
 
       expect(exportBatch).toHaveBeenCalledWith([fakeResult], '/out')
-      expect(result).toEqual({ success: true, exportedCount: 1 })
+      expect(result).toEqual({ success: true, exportedCount: 1, failedCount: 0 })
     })
 
     it('filters out null results before export', async () => {
@@ -450,7 +450,7 @@ describe('registerIpcHandlers', () => {
       )
 
       expect(exportBatch).toHaveBeenCalledWith([fakeResult], '/out')
-      expect(result).toEqual({ success: true, exportedCount: 1 })
+      expect(result).toEqual({ success: true, exportedCount: 1, failedCount: 0 })
     })
 
     it('returns failure when exportBatch throws', async () => {
@@ -468,7 +468,7 @@ describe('registerIpcHandlers', () => {
         { jobIds: ['j1'], outputDir: '/out' }
       )
 
-      expect(result).toEqual({ success: false, exportedCount: 0 })
+      expect(result).toEqual({ success: false, exportedCount: 0, failedCount: 0, error: 'disk full' })
     })
 
     it('marks success false when exportBatch reports 0 successes', async () => {
@@ -486,7 +486,25 @@ describe('registerIpcHandlers', () => {
         { jobIds: ['j1'], outputDir: '/out' }
       )
 
-      expect(result).toEqual({ success: false, exportedCount: 0 })
+      expect(result).toEqual({ success: false, exportedCount: 0, failedCount: 1 })
+    })
+
+    it('marks success false and reports failedCount on partial failure', async () => {
+      const fakeResult = {
+        jobId: 'j1',
+        fileName: 'f.pdf',
+        structuredText: 's',
+        summary: 'sum',
+      }
+      ;(historyInstance.getJob as any).mockResolvedValue(fakeResult)
+      ;(exportBatch as any).mockResolvedValue({ success: 2, failed: 1 })
+
+      const result = await handlers[IPC_CHANNELS.EXPORT_BATCH](
+        {},
+        { jobIds: ['j1'], outputDir: '/out' }
+      )
+
+      expect(result).toEqual({ success: false, exportedCount: 2, failedCount: 1 })
     })
   })
 
