@@ -11,3 +11,37 @@ body {
   width: 100vw;
   height: 100vh;
 }
+
+/* macOS-style overlay scrollbar */
+.scroll-overlay,
+.is-scrolling {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(245, 158, 11, 0.5) transparent;
+}
+
+.scroll-overlay::-webkit-scrollbar,
+.is-scrolling::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.scroll-overlay::-webkit-scrollbar-track,
+.is-scrolling::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scroll-overlay::-webkit-scrollbar-thumb,
+.is-scrolling::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 9999px;
+  transition: background-color 300ms ease;
+}
+
+.is-scrolling::-webkit-scrollbar-thumb {
+  background: rgba(245, 158, 11, 0.5);
+}
+
+.scroll-overlay::-webkit-scrollbar-thumb:hover,
+.is-scrolling::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 158, 11, 0.8);
+}
