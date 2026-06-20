@@ -135,7 +135,12 @@ export interface IpcResponse {
   [IPC_CHANNELS.OCR_START_BATCH]: void
   [IPC_CHANNELS.OCR_CANCEL]: void
   [IPC_CHANNELS.OCR_GET_RESULT]: JobResult | null
-  [IPC_CHANNELS.EXPORT_BATCH]: { success: boolean; exportedCount: number }
+  [IPC_CHANNELS.EXPORT_BATCH]: {
+    success: boolean
+    exportedCount: number
+    failedCount: number
+    error?: string
+  }
   [IPC_CHANNELS.DIALOG_PICK_EXPORT_DIR]: string | null
   [IPC_CHANNELS.HISTORY_LIST]: HistoryItem[]
   [IPC_CHANNELS.HISTORY_GET]: JobResult | null
