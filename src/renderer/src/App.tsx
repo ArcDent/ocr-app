@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Folder, Play, Settings, StopCircle, Upload, Download } from 'lucide-react'
+import { toast } from 'sonner'
 import { FileQueueList } from './components/FileQueueList'
 import { ResultDetail } from './components/ResultDetail'
 import { ConfigDialog } from './components/ConfigDialog'
@@ -43,19 +44,23 @@ export default function App() {
   const hasQueuedFiles = jobList.length > 0 || pendingFiles.length > 0
 
   const handleExport = async () => {
+    let outputDir: string | null
     try {
-      // Request directory picker via IPC
-      const outputDir = await window.electron.ipcRenderer.invoke('dialog:pick-export-dir')
-      if (!outputDir) return // User cancelled
-
-      const { success, exportedCount } = await exportBatch(outputDir)
-      if (success) {
-        alert(`成功导出 ${exportedCount} 个结果！`)
-      } else {
-        alert('导出完成，但部分文件失败。')
-      }
+      // @ts-ignore
+      outputDir = await window.api.invoke('dialog:pick-export-dir')
     } catch (err) {
-      alert('导出失败: ' + (err as Error).message)
+      toast.error('导出失败：' + (err as Error).message)
+      return
+    }
+    if (!outputDir) return // User cancelled
+
+    const result = await exportBatch(outputDir)
+    if (result.success) {
+      toast.success(`成功导出 ${result.exportedCount} 个结果`)
+    } else if (result.exportedCount > 0 && result.failedCount > 0) {
+      toast.warning(`导出 ${result.exportedCount} 个，失败 ${result.failedCount} 个`)
+    } else {
+      toast.error('导出失败：' + (result.error || '没有可导出的结果'))
     }
   }
 
@@ -81,8 +86,7 @@ export default function App() {
             <span className="text-white font-bold text-xl">文</span>
           </div>
           <div>
-            <h1 className="text-xl font-bold text-slate-800 tracking-tight">智能文档识别系统</h1>
-            <p className="text-xs text-amber-600">OCR + AI 结构化处理</p>
+            <p className="text-sm font-semibold text-amber-700">OCR + AI 结构化处理</p>
           </div>
         </div>
         <button
