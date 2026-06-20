@@ -36,7 +36,7 @@ dist/                       # electron-builder 打包产物（gitignore）
   - **根因修复 2（导出提示不准且用原生 alert）**：`ipc-handlers` 的 EXPORT_BATCH 原本 `success>0` 即报成功（部分失败误报成功）且吞错误。扩展 IPC 契约为 `{success, exportedCount, failedCount, error?}`，handler 改 `success>0 && failed===0` 才成功、catch 带 `error`；`useOcrStore.exportBatch` 返回四字段；`App.tsx handleExport` 改用 sonner toast 按状态分色（成功/部分失败 warning/全失败 error），并修掉原 `window.electron.ipcRenderer` 不存在的既有 bug（改 `window.api.invoke`）；`main.tsx` 挂 `<Toaster/>`。
   - **UI 优化**：①标题删「智能文档识别系统」留副标题「OCR + AI 结构化处理」；②`main/index.ts` 加 `Menu.setApplicationMenu(null)` 移除菜单栏；③新增 `useScrollOverlay` hook + `index.css` 琥珀色叠加式滚动条（`is-scrolling` class 切换，`background-color` 过渡），挂到队列/配置对话框/结果详情 3 个容器；④`tailwind.config.js` 加 `fade-in`/`overlay-fade-in`/`zoom-in` keyframes，`ConfigDialog` 蒙层淡入+卡片缩放动效，圆角 `rounded-2xl`→`rounded-3xl`。
   - **执行**：Inline Execution 按 1→2→3→4→6→8→9→5→7→10 顺序，9 个 commit 在 master。TDD 全程，272 测试全过（新增 10 个：useSettingsStore 4 + useScrollOverlay 2 + 导出 4）。typecheck 零新增错误（7 条既存错误全在未触及文件）。
-  - **打包**：17 文件 PowerShell 同步到 Windows 端（哈希全一致），`npx vitest run` 272 过，electron-vite build 成功（renderer CSS 30.33KB，grep 命中 `amber`/`zoom-in`/`overlay-fade-in`/`is-scrolling`），`npx electron-builder --win` 生成 `dist/OCR App-0.2.0-portable.exe`（66.7 MB）。
+  - **打包**：17 文件 PowerShell 同步到 Windows 端（哈希全一致），`npx vitest run` 272 过，electron-vite build 成功（renderer CSS 30.33KB，grep 命中 `amber`/`zoom-in`/`overlay-fade-in`/`is-scrolling`），`npx electron-builder --win` 生成 `dist/OCR App-0.3.0-portable.exe`（66.7 MB）。版本号 bump 0.2.0→0.3.0（含新功能+bug 修复，语义化版本）。
 
 - **2026-06-20**: LLM 结构化提示词重设计——从 Markdown 输出改为按文档类型分支的简洁纯文本（全部完成，已打包 portable exe）
   - **设计**：brainstorming → spec → 自审修订（发现 orchestrator 绕过 prompts.ts 的盲区并修正）→ 实现计划。spec 见 `docs/superpowers/specs/2026-06-20-structured-prompt-redesign.md`，计划见 `docs/superpowers/plans/2026-06-20-structured-prompt-redesign.md`。
@@ -61,7 +61,7 @@ dist/                       # electron-builder 打包产物（gitignore）
 ## 下一步
 
 **立即**：
-1. 运行 `C:\Users\yanga\Projects\ocr-app\dist\OCR App-0.2.0-portable.exe` 手动冒烟：确认窗口无菜单栏、Header 无主标题、滚动条琥珀叠加式、配置对话框缩放淡入+大圆角、输入新配置点测试连接可成功、导出用 toast 提示。
+1. 运行 `C:\Users\yanga\Projects\ocr-app\dist\OCR App-0.3.0-portable.exe` 手动冒烟：确认窗口无菜单栏、Header 无主标题、滚动条琥珀叠加式、配置对话框缩放淡入+大圆角、输入新配置点测试连接可成功、导出用 toast 提示。
 2. master 已有本次 9 个 commit + 上次结构化提示词 9 个 commit 待评估是否推送远端。
 1. 运行 `C:\Users\yanga\Projects\ocr-app\dist\OCR App-0.1.0-portable.exe` 验证单文件自解压运行、配置真实 TextIn + LLM 凭证跑通全链路，确认 LLM 输出为简洁纯文本（无 Markdown 标记、按类型分支）。
 2. 决定 `feat/structured-prompt-redesign` 分支是否合并回 master（9 个 commit 待合并）。
