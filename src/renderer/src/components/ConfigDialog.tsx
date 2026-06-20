@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { X, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { useSettingsStore } from '../stores/useSettingsStore'
+import { useScrollOverlay } from '../hooks/useScrollOverlay'
 
 interface ConfigDialogProps {
   isOpen: boolean
@@ -13,6 +14,9 @@ export function ConfigDialog({ isOpen, onClose }: ConfigDialogProps) {
   const [ocrTestResult, setOcrTestResult] = useState<{ success: boolean; message: string } | null>(null)
   const [llmTestResult, setLlmTestResult] = useState<{ success: boolean; message: string } | null>(null)
   const [isTesting, setIsTesting] = useState(false)
+
+  const contentRef = useRef<HTMLDivElement>(null)
+  useScrollOverlay(contentRef)
 
   useEffect(() => {
     if (isOpen) {
@@ -32,7 +36,7 @@ export function ConfigDialog({ isOpen, onClose }: ConfigDialogProps) {
   const handleTestOcr = async () => {
     setIsTesting(true)
     setOcrTestResult(null)
-    const result = await testOcrConnection()
+    const result = await testOcrConnection(localSettings)
     setOcrTestResult(result)
     setIsTesting(false)
   }
@@ -40,14 +44,14 @@ export function ConfigDialog({ isOpen, onClose }: ConfigDialogProps) {
   const handleTestLlm = async () => {
     setIsTesting(true)
     setLlmTestResult(null)
-    const result = await testLlmConnection()
+    const result = await testLlmConnection(localSettings)
     setLlmTestResult(result)
     setIsTesting(false)
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-overlay-fade-in">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-zoom-in">
         {/* Header */}
         <div className="px-6 py-5 border-b border-slate-200 flex justify-between items-center bg-gradient-to-r from-amber-50 to-orange-50">
           <h2 className="text-2xl font-bold text-slate-800">系统配置</h2>
@@ -60,7 +64,7 @@ export function ConfigDialog({ isOpen, onClose }: ConfigDialogProps) {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-8">
+        <div ref={contentRef} className="flex-1 overflow-y-auto p-6 space-y-8">
           {/* TextIn OCR Config */}
           <section>
             <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
