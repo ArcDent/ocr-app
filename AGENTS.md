@@ -30,13 +30,20 @@ dist/                       # electron-builder 打包产物（gitignore）
 
 ## 最近操作
 
+- **2026-06-22**: v1.0.0 发布——README 重写 + GitHub 仓库创建 + tag 触发自动打包 workflow
+  - **README 重写**：仿 MaiCLI 风格（ASCII logo + 徽章 + 功能表格 + ASCII 界面截图 + FAQ + 贡献指南 + 许可证）。版本号 0.4.4 → 1.0.0。
+  - **GitHub 仓库**：创建 `ArcDent/ocr-app`（public），推送 master 全历史。
+  - **workflow**：`.github/workflows/build-portable.yml`，tag `v*` 触发，在 `windows-latest` 上 `npm ci` → typecheck → electron-vite build → `electron-builder --win portable` → 上传 portable exe 到 GitHub Release。Node 20（electron-builder 26 的 app-builder-lib require 纯 ESM 的 @noble/hashes，Node 18 不支持 require(ESM)）。
+  - **CI 修复既有 typecheck 错误**（7 条全清零）：①`store.test.ts` 删未用 `newStore` 局部；②`orchestrator.test.ts` 的 randomUUID mock 用合法 UUID 格式字符串（template-literal 类型拒 `mock-uuid-1234`）；③`ResultDetail.test.tsx` 补 `import { describe, it, expect, vi } from 'vitest'`；④恢复 `@types/jest`（测试用 describe/it/expect globals，非死依赖——我之前误删）；⑤`tsconfig.json` 清残留 `@/*` paths alias。
+  - **双端同步**：PowerShell Copy-Item 逐文件同步 WSL→Windows，哈希校验全 OK；package-lock 在 Windows 端 `npm install` 重新生成后同步回 WSL。
+  - **Release**：https://github.com/ArcDent/ocr-app/releases/tag/v1.0.0，portable exe 作为 asset 已上传。workflow 3 分 45 秒全绿。
+
 - **2026-06-22**: 代码与文档瘦身收敛（第一性原理 + 降低错误面，未打包，待双端同步）
   - **根目录垃圾删除**：`.clinerules-{architect,ask,code,debug,test}`（Cline IDE 残留）、`.probe-uuid.cjs`（uuid 调试探针）、`.superpowers/`（空状态缓存）、`C:\Users\yanga\Projects\ocr-app\.claude`（Windows 路径在 WSL 被当字面量创建的错误目录）、`docs/`（TASK_*_COMPLETE.md × 3 + PHASE_6_*.md + superpowers/ 下 16 个历史 specs/plans——设计决策已固化到 .claude/CLAUDE.md 坑点 + AGENTS.md 关键发现）。docs 目录随之删除。
   - **死依赖清理**（package.json）：`uuid` + `@types/uuid`（坑点 8 已改 crypto.randomUUID）、`react-router-dom`（源码零引用，App 无路由）、`@types/jest`（用 vitest，@testing-library/jest-dom 自带类型）、`touch`（零引用）、`@types/electron-store`（v8 自带类型，源码用 any）。同步清理 electron-builder.yml 排除列表中对已删 `.probe-uuid.cjs`/`forge.config.js` 的引用。
   - **源码瘦身**：①删 `src/main/pipeline/types.ts`（纯 re-export shared/types，orchestrator 已直接 import，零引用）；②`src/preload/index.ts` 删 `once` + `removeAllListeners`（未用）+ 清掉既有死 import `IPC_CHANNELS`；③`src/renderer/src/App.tsx` 删 `handleDragOver`/`handleDrop` + `onDragOver`/`onDrop`（未实现的拖拽伪扩展点，注释自承"rely on pickFiles buttons"）；④`src/main/history/history-manager.ts` 用 shared `HISTORY_LIMIT` 替代本地重复常量 `MAX_HISTORY_ITEMS`；⑤`tailwind.config.js` 删 `fade-in` + `paper-rise` keyframes/animation（零引用，仅 overlay-fade-in/zoom-in/seal-press 在用）；⑥`electron.vite.config.ts` + `vitest.workspace.ts` 删 `@` alias（源码零引用）。
   - **文档收敛**：README.md 版本号 0.4.2 → 0.4.4 同步 + 用例数 274 → 275；AGENTS.md「最近操作」从 7 条裁到 5 条（删 0.4.0 UI 优化 6 项重复条 + CLAUDE.md 收尾约束条，后者已固化在 .claude/CLAUDE.md）。
   - **验证**：typecheck 零新增错误（7 条既存错误全在 main/preload 测试文件未触及）；vitest 275/275 通过（17 文件，WSL 原生路径 `node node_modules/vitest/vitest.mjs run`）。
-  - **未打包**：纯收敛重构，未触版本号、未打包（待用户确认双端同步后按收尾流程执行）。
 
 - **2026-06-22**: 修复窗口圆角消失 + 复制按钮挡内容两个问题，已打包 0.4.4 portable exe
   - **根因 1（窗口圆角消失，0.4.2 有 0.4.3 没了）**：用户确认 Win11 + 还原态窗口本角圆角消失。调查 `main/index.ts` 配置正确（titleBarStyle: 'hidden' + titleBarOverlay，frame 默认 true、resizable 默认 true、roundedCorners 默认 true、无 transparent）。tavily 查 Electron 官方文档 + issue #32981：`resizable: false` / `frame: false` / `transparent: true` 会让 Win11 圆角失效——本项目均无这些配置。0.4.2→0.4.3 未动 main/index.ts（只改了 App.tsx 按钮 + ConfigDialog no-drag），代码层面窗口配置没变。根因判定：**Win11 DWM 对 frameless-titlebar 窗口圆角判定的 OS 层抖动**（已知行为，valinet 文章证实软件显示适配器/远程会话也会让圆角失效）。防御性根因修复：显式设 `roundedCorners: true`（Electron 官方 Windows 圆角控制选项，虽默认 true 但显式声明确保意图明确、防隐式行为漂移）。若重打后仍无圆角则是 OS/驱动层问题非代码可修。
@@ -77,14 +84,17 @@ dist/                       # electron-builder 打包产物（gitignore）
 
 ## 进行中
 
-代码与文档瘦身收敛（第一性原理 + 系统收敛）。已删根目录垃圾（.clinerules-*/.probe-uuid.cjs/.superpowers/错误路径目录/docs 历史文档）、死依赖（uuid/react-router-dom/@types/jest/touch/@types/electron-store）、源码瘦身（pipeline/types.ts re-export、preload once/removeAllListeners、App.tsx 空 drop handler、tailwind 未用 keyframes、@ alias、history-manager 用 shared HISTORY_LIMIT）。typecheck 零新增错误，vitest 275/275 通过。待双端同步 + 打包。
+无。v1.0.0 已发布（GitHub 仓库 ArcDent/ocr-app，tag v1.0.0，portable exe 已上传 Release）。收敛 + README 重写 + CI workflow 全部完成。
 
 ## 下一步
 
 **立即**：
-1. 视觉冒烟：跑 `dist/OCR App-0.4.4-portable.exe`，确认——①窗口本角在 Win11 还原态下恢复圆角；②结果内容区右上角不再有复制按钮（不再挡文本），复制按钮移到底部 Action Bar 与"导出所有结果"并列，切 tab 后点复制能复制对应 tab 内容、点后变"已复制"2s 回弹。
-2. 若圆角仍未恢复：是 OS/驱动层问题（Win11 DWM 抖动或软件显示适配器），非代码可修，需用户排查系统设置（设置→系统→显示→图形→确认非 WARP/软件适配器）或接受方角。
-3. 若视觉通过，commit 当前 5 个修改文件（建议 message: `fix: restore window rounded corners and move copy button to export bar`），推送 master。
+1. 视觉冒烟：下载 Release 的 `OCR-App-1.0.0-portable.exe` 跑一遍，确认功能正常（OCR/结构化/摘要/导出/历史）。
+2. 真实 API 联调：用真实 OCR 文本（发票/聊天记录/报告）验证四类格式判定与输出效果。
+
+**后续**：
+- 若发现 LLM 高频误判类型，在 `prompts.ts` 的 TYPE_RULES 里强化判定准则。
+- 后续发版：改完代码后 `git tag vX.Y.Z && git push origin vX.Y.Z`，workflow 自动构建并发布 Release。
 
 **后续**：
 - 真实 API 联调：用真实 OCR 文本（发票/聊天记录/报告）验证四类格式判定与输出效果。
@@ -111,3 +121,5 @@ dist/                       # electron-builder 打包产物（gitignore）
 16. **目录选择必须主进程展开为文件列表（2026-06-22 修复 EISDIR）**: `dialog.showOpenDialog({properties:['openDirectory']})` 返回的是目录路径，不能直接喂给 `fs.readFile`（抛 EISDIR）。主进程 `ocr:pick-files` 的 `directory` 分支必须用 `fs.readdir({withFileTypes:true})` 递归展开目录为受支持扩展名（jpg/jpeg/png/pdf，与 files 分支 filters 一致）文件绝对路径列表。`readdir` 失败（EACCES 等）返回空数组不抛，避免单个无权限子目录中断整个批次。后续若新增其他受支持扩展名，同步更新 `SUPPORTED_EXTENSIONS` 常量与 files 分支 filters。
 17. **frameless 标题栏用 titleBarOverlay 而非自绘窗口控件（2026-06-22 修复）**: `BrowserWindow` 配 `titleBarStyle: 'hidden'` + `titleBarOverlay: {color, symbolColor, height}`（Windows/Linux）让系统原生绘制 min/max/close 控件但用 app 主题色（paper-2 背景 #f3eee2 + ink 符号 #1a1815 + 40px 与 header 视觉高度对齐），macOS 自动保留原生交通灯且 overlay 选项被忽略。React 侧 header 加 `style={{WebkitAppRegion:'drag'}}` 让整条可拖拽，按钮加 `WebkitAppRegion:'no-drag'` 保持可点击。`WebkitAppRegion` 是 Electron 专属 CSS 属性，React CSS 类型不含需 `as React.CSSProperties` 强转，且作为内联 style 不进打包 CSS（运行时挂 DOM），验证时 grep renderer JS bundle 而非 CSS。Windows/Linux 上 header 右侧需 `pr-[140px]` 为系统控件预留空间（macOS 用 `navigator.platform` 判断跳过）。后续若 header 布局变化，确认 overlay height 与 header 实际视觉高度一致避免色带错位。
 18. **overlay 覆盖 drag region 必须显式设 no-drag（2026-06-22 修复 x 关不掉）**: Electron 的 `-webkit-app-region: drag` 命中是基于屏幕像素位置的——当一个 `fixed inset-0` 的 overlay（如 ConfigDialog 遮罩）覆盖在设置了 drag 的 header 之上时，**overlay 本身若未显式设 `WebkitAppRegion: 'no-drag'`，其覆盖 drag region 的屏幕区域内的点击会被 Electron 拦截做窗口拖拽，React onClick 收不到事件**。表现为：弹窗里只有落在 App header drag region 屏幕坐标范围内的按钮（如 ConfigDialog header 行的 x）点不动，落在 drag region 之外的按钮（如底部"取消""保存"）正常。根因修复：给 overlay 容器（`fixed inset-0` 那层）加 `style={{ WebkitAppRegion: 'no-drag' }}`，整个 overlay 及其子元素都不再被 drag 命中。**禁止用"移除 x 按钮"做症状修复**——那样根因仍在，弹窗位置或内容一变就会复发。后续新增任何覆盖 header 的 fixed overlay（modal/dropdown/popover）都必须显式设 `no-drag`。
+19. **CI 构建必须用 Node 20+（2026-06-22 修复 ERR_REQUIRE_ESM）**: electron-builder 26 的 app-builder-lib 依赖 `@noble/hashes@2.x`（纯 ESM 包），打包 blockmap 时用 `require()` 加载它。Node 18 不支持 `require(ESM)`，报 `ERR_REQUIRE_ESM`。GitHub Actions workflow 必须用 `node-version: 20`（或更高）。本地构建同理。后续若升级 electron-builder 版本，确认其依赖链无纯 ESM 包冲突，或 Node 版本足够。
+20. **@types/jest 非死依赖（2026-06-22 误删后恢复）**: 测试文件用 `describe`/`it`/`expect`/`vi` 全局函数。vitest 本身不提供这些全局的 TypeScript 类型（运行时靠 vitest/globals，但 typecheck 时需类型声明）。`@types/jest` 提供 describe/it/expect 的类型，是 typecheck 通过的依赖。**禁止再次误删**——删后本地因 node_modules 残留不报错，但 CI 全新 `npm ci` 会暴露 `Cannot find name 'describe'`。验证方式：删任何 `@types/*` 前先 grep 测试文件是否用到其提供的全局类型。
