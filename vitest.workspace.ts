@@ -1,6 +1,5 @@
 import { defineWorkspace } from 'vitest/config'
 import react from '@vitejs/plugin-react'
-import { resolve } from 'path'
 
 export default defineWorkspace([
   {
@@ -13,9 +12,6 @@ export default defineWorkspace([
   },
   {
     plugins: [react()],
-    resolve: {
-      alias: { '@': resolve(__dirname, 'src/renderer/src') },
-    },
     test: {
       name: 'renderer',
       environment: 'jsdom',

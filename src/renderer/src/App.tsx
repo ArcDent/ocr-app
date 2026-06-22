@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Folder, Play, Settings, StopCircle, Upload, Download } from 'lucide-react'
+import { Copy, Folder, Play, Settings, StopCircle, Upload, Download } from 'lucide-react'
 import { toast } from 'sonner'
 import { FileQueueList } from './components/FileQueueList'
-import { ResultDetail } from './components/ResultDetail'
+import { ResultDetail, type ResultTab } from './components/ResultDetail'
 import { ConfigDialog } from './components/ConfigDialog'
 import { useOcrStore } from './stores/useOcrStore'
 import { useSettingsStore } from './stores/useSettingsStore'
@@ -10,6 +10,8 @@ import { useSettingsStore } from './stores/useSettingsStore'
 
 export default function App() {
   const [isConfigOpen, setIsConfigOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState<ResultTab>('structured')
+  const [copySuccess, setCopySuccess] = useState(false)
 
 
   // Settings state
@@ -64,8 +66,32 @@ export default function App() {
     }
   }
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
+  const currentResult = selectedJobId ? results[selectedJobId] || null : null
+
+  const currentContent = (() => {
+    if (!currentResult) return ''
+    switch (activeTab) {
+      case 'structured':
+        return currentResult.structuredText
+      case 'summary':
+        return currentResult.summary
+      case 'raw':
+        return currentResult.rawText
+    }
+  })()
+
+  const handleCopy = async () => {
+    if (!currentContent) {
+      toast.info('当前没有可复制的内容')
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(currentContent)
+      setCopySuccess(true)
+      setTimeout(() => setCopySuccess(false), 2000)
+    } catch (err) {
+      toast.error('复制失败：' + (err as Error).message)
+    }
   }
 
   // macOS keeps the native traffic lights on the left; Windows/Linux render
@@ -76,22 +102,13 @@ export default function App() {
     /Mac|iPhone|iPod|iPad/.test(navigator.platform || navigator.userAgent)
   const headerPadRight = isMac ? '' : 'pr-[140px]'
 
-  const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault()
-    if (isProcessing) return
-
-    // Electron supports getting file paths from drag events
-    // but the implementation requires IPC. For now, we rely on the pickFiles buttons.
-    // Full implementation would extract file paths and send to a specific IPC endpoint.
-  }
-
   return (
-    <div className="h-screen flex flex-col bg-paper text-ink overflow-hidden" onDragOver={handleDragOver} onDrop={handleDrop}>
+    <div className="h-screen flex flex-col bg-paper text-ink overflow-hidden">
       {/* Header — also the window drag region (titleBarStyle: 'hidden' in main).
           headerPadRight reserves space for the Windows/Linux titleBarOverlay
           min/max/close controls so the settings button never sits under them. */}
       <header
-        className={`bg-paper-2 border-b border-line px-6 py-5 flex items-center justify-between shrink-0 z-10 ${headerPadRight}`}
+        className={`bg-paper-2 border-b border-line px-6 py-5 flex items-center justify-start shrink-0 z-10 ${headerPadRight}`}
         style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
       >
         <div className="flex items-center gap-3">
@@ -118,14 +135,6 @@ export default function App() {
             <p className="text-xs text-ink-3 leading-tight mt-1">OCR + AI 结构化处理</p>
           </div>
         </div>
-        <button
-          onClick={() => setIsConfigOpen(true)}
-          className="p-2.5 text-ink-2 hover:text-ink hover:bg-paper rounded-lg transition-all duration-200"
-          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-          title="设置"
-        >
-          <Settings className="w-5 h-5" />
-        </button>
       </header>
 
       {/* Main Content */}
@@ -218,14 +227,40 @@ export default function App() {
 
         {/* Right Panel: Result Details */}
         <div className="flex-1 flex flex-col bg-paper-2 rounded-xl shadow-card border border-line overflow-hidden">
+          {/* Toolbar — settings button lives here, above the result/summary area */}
+          <div className="px-4 py-2.5 border-b border-line bg-paper-2 flex justify-end shrink-0">
+            <button
+              onClick={() => setIsConfigOpen(true)}
+              className="p-2 text-ink-2 hover:text-ink hover:bg-paper rounded-lg transition-all duration-200"
+              title="设置"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+          </div>
+
           <div className="flex-1 overflow-hidden">
             <ResultDetail
-              result={selectedJobId ? results[selectedJobId] || null : null}
+              result={currentResult}
+              activeTab={activeTab}
+              onActiveTabChange={setActiveTab}
             />
           </div>
 
           {/* Bottom Action Bar */}
-          <div className="bg-paper-2 border-t border-line p-4 flex justify-end shrink-0">
+          <div className="bg-paper-2 border-t border-line p-4 flex justify-end gap-3 shrink-0">
+            <button
+              onClick={handleCopy}
+              disabled={!currentResult || !currentContent}
+              className={`flex items-center gap-2 px-5 py-2.5 border rounded-md text-sm font-semibold focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 ${
+                copySuccess
+                  ? 'border-seal text-seal bg-seal-soft'
+                  : 'border-line text-ink-2 bg-paper hover:bg-paper-2 hover:text-ink'
+              }`}
+              title="复制当前内容到剪贴板"
+            >
+              <Copy className="w-4 h-4" />
+              {copySuccess ? '已复制' : '复制内容'}
+            </button>
             <button
               onClick={handleExport}
               disabled={Object.keys(results).length === 0 || isProcessing}

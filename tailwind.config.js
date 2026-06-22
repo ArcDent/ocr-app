@@ -36,10 +36,6 @@ module.exports = {
         float: 'var(--shadow-float)',
       },
       keyframes: {
-        'fade-in': {
-          from: { opacity: '0' },
-          to: { opacity: '1' },
-        },
         'overlay-fade-in': {
           from: { opacity: '0' },
           to: { opacity: '1' },
@@ -48,20 +44,14 @@ module.exports = {
           from: { opacity: '0', transform: 'scale(0.95)' },
           to: { opacity: '1', transform: 'scale(1)' },
         },
-        'paper-rise': {
-          from: { opacity: '0', transform: 'translateY(4px)' },
-          to: { opacity: '1', transform: 'translateY(0)' },
-        },
         'seal-press': {
           from: { transform: 'scale(1)' },
           to: { transform: 'scale(0.97)' },
         },
       },
       animation: {
-        'fade-in': 'fade-in 200ms ease-out',
         'overlay-fade-in': 'overlay-fade-in 200ms ease-out',
         'zoom-in': 'zoom-in 220ms cubic-bezier(0.16, 1, 0.3, 1)',
-        'paper-rise': 'paper-rise 220ms ease-out',
         'seal-press': 'seal-press 120ms ease-out',
       },
     },

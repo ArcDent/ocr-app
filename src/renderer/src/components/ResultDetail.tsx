@@ -1,18 +1,20 @@
 import { useState, useRef } from 'react'
-import { AlertTriangle, ChevronDown, ChevronRight, Copy, FileText } from 'lucide-react'
+import { AlertTriangle, ChevronDown, ChevronRight, FileText } from 'lucide-react'
 import { JobResult } from '../../../shared/types'
 import { useScrollOverlay } from '../hooks/useScrollOverlay'
 
+export type ResultTab = 'structured' | 'summary' | 'raw'
+
 interface ResultDetailProps {
   result: JobResult | null
+  activeTab: ResultTab
+  onActiveTabChange: (tab: ResultTab) => void
 }
 
-export function ResultDetail({ result }: ResultDetailProps) {
+export function ResultDetail({ result, activeTab, onActiveTabChange }: ResultDetailProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   useScrollOverlay(scrollRef)
   const [showThoughts, setShowThoughts] = useState(false)
-  const [activeTab, setActiveTab] = useState<'structured' | 'summary' | 'raw'>('structured')
-  const [copySuccess, setCopySuccess] = useState(false)
 
   if (!result) {
     return (
@@ -22,17 +24,6 @@ export function ResultDetail({ result }: ResultDetailProps) {
         <p className="text-sm text-ink-3 mt-2">从左侧队列中选择一个已完成的任务</p>
       </div>
     )
-  }
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text)
-      .then(() => {
-        setCopySuccess(true)
-        setTimeout(() => setCopySuccess(false), 2000)
-      })
-      .catch(err => {
-        console.error('Failed to copy text: ', err)
-      })
   }
 
   const renderContent = () => {
@@ -87,19 +78,6 @@ export function ResultDetail({ result }: ResultDetailProps) {
         )}
 
         <div className="flex-1 relative border border-line rounded-md bg-paper shadow-card overflow-hidden flex flex-col">
-          <div className="absolute top-3 right-3 z-10">
-            <button
-              onClick={() => copyToClipboard(content)}
-              className={`p-2.5 rounded-sm border transition-all duration-200 ${
-                copySuccess
-                  ? 'bg-seal border-seal text-white'
-                  : 'bg-paper hover:bg-vermilion-soft border-line text-ink-2 hover:border-vermilion hover:text-vermilion'
-              }`}
-              title="复制到剪贴板"
-            >
-              <Copy className="w-4 h-4" />
-            </button>
-          </div>
           <div ref={scrollRef} className="flex-1 p-6 overflow-y-auto font-mono text-sm whitespace-pre-wrap leading-relaxed text-ink scroll-overlay">
             {content || <span className="text-ink-3 italic">无内容</span>}
           </div>
@@ -136,7 +114,7 @@ export function ResultDetail({ result }: ResultDetailProps) {
                 ? 'border-vermilion text-vermilion'
                 : 'border-transparent text-ink-3 hover:text-ink hover:bg-paper-2'
             }`}
-            onClick={() => setActiveTab('structured')}
+            onClick={() => onActiveTabChange('structured')}
           >
             结构化内容
           </button>
@@ -146,7 +124,7 @@ export function ResultDetail({ result }: ResultDetailProps) {
                 ? 'border-vermilion text-vermilion'
                 : 'border-transparent text-ink-3 hover:text-ink hover:bg-paper-2'
             }`}
-            onClick={() => setActiveTab('summary')}
+            onClick={() => onActiveTabChange('summary')}
           >
             摘要
           </button>
@@ -156,7 +134,7 @@ export function ResultDetail({ result }: ResultDetailProps) {
                 ? 'border-vermilion text-vermilion'
                 : 'border-transparent text-ink-3 hover:text-ink hover:bg-paper-2'
             }`}
-            onClick={() => setActiveTab('raw')}
+            onClick={() => onActiveTabChange('raw')}
           >
             原始 OCR
           </button>

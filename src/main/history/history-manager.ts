@@ -1,11 +1,9 @@
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as StoreModule from 'electron-store'
-import { JobResult, HistoryItem } from '../../shared/types'
+import { JobResult, HistoryItem, HISTORY_LIMIT } from '../../shared/types'
 
 const Store = (StoreModule as any).default || StoreModule
-
-const MAX_HISTORY_ITEMS = 100
 
 export class HistoryManager {
   private store: any
@@ -69,9 +67,9 @@ export class HistoryManager {
     }
     history.sort((a, b) => b.createdAt - a.createdAt)
 
-    if (history.length > MAX_HISTORY_ITEMS) {
-      const itemsToRemove = history.slice(MAX_HISTORY_ITEMS)
-      history = history.slice(0, MAX_HISTORY_ITEMS)
+    if (history.length > HISTORY_LIMIT) {
+      const itemsToRemove = history.slice(HISTORY_LIMIT)
+      history = history.slice(0, HISTORY_LIMIT)
       for (const itemToRemove of itemsToRemove) {
         try {
           await fs.rm(path.join(this.ocrResultsDir, itemToRemove.jobId), {

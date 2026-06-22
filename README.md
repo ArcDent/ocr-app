@@ -51,7 +51,7 @@ npm run make
 
 1. 通过 electron-vite 编译 TypeScript/React 源码，产物输出到 `out/`（main/preload/renderer）
 2. 通过 electron-builder 打包成 Windows 单文件 portable exe
-3. 产物输出到：`dist/OCR App-<version>-portable.exe`（当前 `0.4.2`）
+3. 产物输出到：`dist/OCR App-<version>-portable.exe`（当前 `0.4.4`）
 4. 免安装目录：`dist/win-unpacked/ocr-app.exe`
 
 **首次构建**可能因 electron-builder 向 GitHub 请求 Electron 元数据而 `ECONNRESET`，直接重试 `npx electron-builder --win` 即可（非配置问题）。
@@ -65,7 +65,7 @@ npm run make
 
 ### 使用 portable exe
 
-双击 `dist/OCR App-0.4.2-portable.exe` 即可运行，无需安装。
+双击 `dist/OCR App-0.4.4-portable.exe` 即可运行，无需安装。
 
 > **注意**：严禁在 WSL2 UNC 路径（`\\wsl.localhost\...`）下执行 `npm install` / `npm run make`（会因 `.bin` 符号链接 `EISDIR` 崩溃）。请改在 Windows 原生路径 `C:\...` 或 WSL 原生路径 `/home/...` 执行。
 
@@ -95,4 +95,4 @@ postcss.config.js     # PostCSS 配置（tailwindcss + autoprefixer）
 - Electron 28 + electron-vite + electron-builder
 - TypeScript 5.9 + React 18 + Zustand
 - Tailwind CSS（「纸本墨韵」主题：paper/ink/vermilion/seal 色系）
-- Vitest 单元测试（274 个用例）
+- Vitest 单元测试（275 个用例）

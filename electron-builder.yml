@@ -7,14 +7,13 @@ files:
   - package.json
   - '!**/.vscode/*'
   - '!src/*'
-  - '!docs/*'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
   - '!{.eslintignore,.eslintrc.json,.prettierrc,.gitignore}'
   - '!{tsconfig.json,tsconfig.node.json,vitest.workspace.ts}'
   - '!**/__tests__/**'
   - '!**/*.test.{ts,tsx}'
-  - '!{tailwind.config.js,postcss.config.js,electron-builder.yml,forge.config.js}'
-  - '!{AGENTS.md,README.md,.probe-uuid.cjs}'
+  - '!{tailwind.config.js,postcss.config.js,electron-builder.yml}'
+  - '!{AGENTS.md,README.md}'
 asarUnpack:
   - resources/**
 win:

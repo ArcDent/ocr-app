@@ -50,7 +50,10 @@ export function ConfigDialog({ isOpen, onClose }: ConfigDialogProps) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-overlay-fade-in">
+    <div
+      className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-overlay-fade-in"
+      style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+    >
       <div className="bg-paper rounded-xl shadow-float border border-line w-full max-w-2xl max-h-[90vh] flex flex-col animate-zoom-in overflow-hidden">
         {/* Header */}
         <div className="px-6 py-5 border-b border-line flex justify-between items-center bg-paper-2">

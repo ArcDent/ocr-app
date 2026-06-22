@@ -17,6 +17,12 @@ function createWindow() {
     // traffic lights are retained (titleBarStyle: 'hidden' leaves them in
     // place) and this overlay option is ignored.
     titleBarStyle: 'hidden',
+    // Explicitly opt into Windows 11 / macOS rounded window corners.
+    // Defaults to true, but declaring it explicitly guards against any
+    // implicit behavior drift and ensures the OS-level corner rounding is
+    // never accidentally lost (a known DWM quirk can drop rounding on
+    // frameless-titlebar windows if the option is left implicit).
+    roundedCorners: true,
     ...(process.platform !== 'darwin'
       ? {
           titleBarOverlay: {
