@@ -91,6 +91,30 @@
 - 新增主进程依赖前，检查是否为纯 ESM 包，若是则评估 CJS 兼容性（参考坑点 8）
 - 修改构建配置后同步更新本文件「已知坑点」与 `AGENTS.md`「关键发现」
 
+## 收尾流程约束（强约束，不可跳过）
+
+本项目在全局「任务收尾执行顺序」基础上，追加以下项目专属收尾步骤。
+当本次任务涉及功能/修复/可见变更、准备交付时，按以下顺序执行，**顺序不可调换**：
+
+1. **先更新版本号** — 在 `package.json` 中按 semver 递增 `version` 字段
+   （常规修复/小功能 → patch；新增功能 → minor；破坏性变更 → major）。
+   版本号决定 portable exe 文件名（`dist/OCR App-<version>-portable.exe`），
+   必须先改版本号再打包，否则产物会覆盖上一次同名 exe，无法追溯。
+
+2. **同步双端配置** — 修改 `package.json` 后按坑点 3 同步 WSL/Windows 两端，
+   避免构建处与 git 源漂移。
+
+3. **再打包成单一二进制 portable exe** — 在 Windows 原生路径执行
+   `npm run make`（= `build` + `electron-builder --win`），产出
+   `dist/OCR App-<version>-portable.exe` 单文件。
+   严禁在 UNC 路径下执行（坑点 4）。
+
+4. **验证产物** — 确认 `dist/OCR App-<version>-portable.exe` 存在且体积合理；
+   遇到 ECONNRESET 按坑点 5 直接重试，不当 bug 排查。
+   注意坑点 6：`resources/icon.ico` 须含 256x256 尺寸，否则构建中断。
+
+**顺序铁律**：版本号未更新就打包 → 旧版本 portable exe 被覆盖、无法回溯。
+
 ## 参考
 
 - 构建产物路径：`dist/OCR App-0.1.0-portable.exe`（单文件 portable）、`dist/win-unpacked/ocr-app.exe`（免安装目录）

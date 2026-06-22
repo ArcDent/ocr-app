@@ -78,20 +78,35 @@ export default function App() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 overflow-hidden" onDragOver={handleDragOver} onDrop={handleDrop}>
+    <div className="h-screen flex flex-col bg-paper text-ink overflow-hidden" onDragOver={handleDragOver} onDrop={handleDrop}>
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-md border-b border-slate-200/60 px-6 py-4 flex items-center justify-between shrink-0 shadow-sm z-10">
+      <header className="bg-paper-2 border-b border-line px-6 py-4 flex items-center justify-between shrink-0 z-10">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center shadow-md">
-            <span className="text-white font-bold text-xl">文</span>
-          </div>
+          {/* Vermilion seal logo — custom SVG, replaces the ugly "文" placeholder */}
+          <svg
+            width="32"
+            height="32"
+            viewBox="0 0 32 32"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-label="OCR App"
+            className="shrink-0"
+          >
+            <rect x="1" y="1" width="30" height="30" rx="5" fill="var(--vermilion)" />
+            <rect x="1" y="1" width="30" height="30" rx="5" fill="none" stroke="var(--vermilion-2)" strokeWidth="1" opacity="0.5" />
+            {/* Abstract "字" stroke geometry — two horizontal bars + a triangle, like a seal carving / OCR scan lines */}
+            <rect x="9" y="9" width="14" height="2.2" rx="1" fill="var(--paper)" />
+            <rect x="9" y="14.5" width="14" height="2.2" rx="1" fill="var(--paper)" />
+            <path d="M16 17.5 L22 24 L10 24 Z" fill="var(--paper)" />
+          </svg>
           <div>
-            <p className="text-sm font-semibold text-amber-700">OCR + AI 结构化处理</p>
+            <p className="font-display text-base font-semibold text-ink leading-tight">OCR 结构化工坊</p>
+            <p className="text-xs text-ink-3 leading-tight mt-0.5">OCR + AI 结构化处理</p>
           </div>
         </div>
         <button
           onClick={() => setIsConfigOpen(true)}
-          className="p-2.5 text-slate-600 hover:text-slate-800 hover:bg-amber-50 rounded-xl transition-all duration-200"
+          className="p-2.5 text-ink-2 hover:text-ink hover:bg-paper rounded-lg transition-all duration-200"
           title="设置"
         >
           <Settings className="w-5 h-5" />
@@ -101,14 +116,14 @@ export default function App() {
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden gap-4 p-4">
         {/* Left Panel: Controls & Queue */}
-        <div className="w-80 flex flex-col bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200/60 overflow-hidden">
+        <div className="w-80 flex flex-col bg-paper-2 rounded-xl shadow-card border border-line overflow-hidden">
           {/* Controls */}
-          <div className="p-5 border-b border-slate-200/60">
+          <div className="p-5 border-b border-line">
             <div className="flex gap-2 mb-4">
               <button
                 onClick={() => pickFiles('files')}
                 disabled={isProcessing}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 rounded-xl text-sm font-medium text-amber-700 hover:from-amber-100 hover:to-orange-100 disabled:opacity-50 transition-all duration-200 shadow-sm"
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 bg-paper border border-line rounded-md text-sm font-medium text-ink-2 hover:border-vermilion hover:bg-vermilion-soft hover:text-vermilion disabled:opacity-50 disabled:hover:border-line disabled:hover:bg-paper disabled:hover:text-ink-2 transition-all duration-200"
               >
                 <Upload className="w-4 h-4" />
                 选择文件
@@ -116,7 +131,7 @@ export default function App() {
               <button
                 onClick={() => pickFiles('directory')}
                 disabled={isProcessing}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 bg-gradient-to-r from-orange-50 to-yellow-50 border border-orange-300 rounded-xl text-sm font-medium text-orange-700 hover:from-orange-100 hover:to-yellow-100 disabled:opacity-50 transition-all duration-200 shadow-sm"
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 bg-paper border border-line rounded-md text-sm font-medium text-ink-2 hover:border-vermilion hover:bg-vermilion-soft hover:text-vermilion disabled:opacity-50 disabled:hover:border-line disabled:hover:bg-paper disabled:hover:text-ink-2 transition-all duration-200"
               >
                 <Folder className="w-4 h-4" />
                 选择文件夹
@@ -124,17 +139,17 @@ export default function App() {
             </div>
 
             <div className="mb-4">
-              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2.5">
+              <label className="block text-xs font-semibold text-ink-3 uppercase tracking-wider mb-2.5">
                 处理模式
               </label>
-              <div className="flex rounded-xl shadow-sm overflow-hidden border border-slate-200">
+              <div className="flex rounded-md overflow-hidden border border-line bg-paper">
                 <button
                   onClick={() => setMode('faithful')}
                   disabled={isProcessing}
                   className={`flex-1 py-2.5 text-sm font-medium transition-all duration-200 ${
                     mode === 'faithful'
-                      ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md'
-                      : 'bg-white text-slate-700 hover:bg-amber-50'
+                      ? 'bg-ink text-paper shadow-card'
+                      : 'bg-paper text-ink-2 hover:bg-paper-2'
                   }`}
                 >
                   忠实提取
@@ -142,10 +157,10 @@ export default function App() {
                 <button
                   onClick={() => setMode('enhanced')}
                   disabled={isProcessing}
-                  className={`flex-1 py-2.5 text-sm font-medium border-l border-slate-200 transition-all duration-200 ${
+                  className={`flex-1 py-2.5 text-sm font-medium border-l border-line transition-all duration-200 ${
                     mode === 'enhanced'
-                      ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md'
-                      : 'bg-white text-slate-700 hover:bg-amber-50'
+                      ? 'bg-ink text-paper shadow-card'
+                      : 'bg-paper text-ink-2 hover:bg-paper-2'
                   }`}
                 >
                   增强摘要
@@ -157,7 +172,7 @@ export default function App() {
               <button
                 onClick={startBatch}
                 disabled={!hasQueuedFiles}
-                className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-semibold hover:from-amber-600 hover:to-orange-600 disabled:from-slate-300 disabled:to-slate-400 transition-all duration-200 shadow-lg shadow-amber-500/20 hover:shadow-xl disabled:shadow-none"
+                className="w-full flex items-center justify-center gap-2 py-3 bg-vermilion text-white rounded-md font-semibold hover:bg-vermilion-2 disabled:bg-ink-3 disabled:cursor-not-allowed transition-all duration-200 shadow-card active:animate-seal-press"
               >
                 <Play className="w-5 h-5" />
                 开始处理
@@ -165,7 +180,7 @@ export default function App() {
             ) : (
               <button
                 onClick={cancelBatch}
-                className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-red-50 to-orange-50 text-red-700 border-2 border-red-300 rounded-xl font-semibold hover:from-red-100 hover:to-orange-100 transition-all duration-200 shadow-sm"
+                className="w-full flex items-center justify-center gap-2 py-3 bg-paper border border-red-300 text-red-700 rounded-md font-semibold hover:bg-red-soft transition-all duration-200"
               >
                 <StopCircle className="w-5 h-5" />
                 取消处理
@@ -187,7 +202,7 @@ export default function App() {
         </div>
 
         {/* Right Panel: Result Details */}
-        <div className="flex-1 flex flex-col bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200/60 overflow-hidden">
+        <div className="flex-1 flex flex-col bg-paper-2 rounded-xl shadow-card border border-line overflow-hidden">
           <div className="flex-1 overflow-hidden">
             <ResultDetail
               result={selectedJobId ? results[selectedJobId] || null : null}
@@ -195,11 +210,11 @@ export default function App() {
           </div>
 
           {/* Bottom Action Bar */}
-          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-t border-slate-200/60 p-4 flex justify-end shrink-0">
+          <div className="bg-paper-2 border-t border-line p-4 flex justify-end shrink-0">
             <button
               onClick={handleExport}
               disabled={Object.keys(results).length === 0 || isProcessing}
-              className="flex items-center gap-2 px-5 py-2.5 border-2 border-emerald-300 shadow-sm text-sm font-semibold rounded-xl text-emerald-700 bg-gradient-to-r from-emerald-50 to-teal-50 hover:from-emerald-100 hover:to-teal-100 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              className="flex items-center gap-2 px-5 py-2.5 border border-seal text-seal rounded-md text-sm font-semibold bg-paper hover:bg-seal-soft focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-paper transition-all duration-200"
             >
               <Download className="w-4 h-4" />
               导出所有结果

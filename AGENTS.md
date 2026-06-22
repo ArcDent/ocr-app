@@ -30,6 +30,18 @@ dist/                       # electron-builder 打包产物（gitignore）
 
 ## 最近操作
 
+- **2026-06-22**: 前端整体重设计「纸本墨韵 / Editorial Ink」——移除「文」字 logo、ConfigDialog 卡片化、摆脱 amber+slate AI slop
+  - **设计**：`/brainstorming` + sequential-thinking MCP 推导设计令牌 → AskUserQuestion 三决策（审美方向/logo 方案/body 字体）→ plan 文件 `C:\Users\yanga\.claude\plans\mossy-sleeping-volcano.md`。
+  - **方向**：暖纸白 `#FAF7F0` 底 + 深墨 `#1A1815` 文字 + 朱砂红 `#C8442A`（印章红）强调 + 青墨绿 `#2D5F4E` 成功态 + 衬线 display（Iowan/Songti SC 系统栈，离线可用）。圆角体系统一为 input 8 / button 12 / card 16 / dialog 24。
+  - **改动文件**（6 个，纯样式层，零逻辑改动）：`index.css`（注入 :root CSS 变量 + 字体栈 + 滚动条 amber→vermilion）、`tailwind.config.js`（extend colors/fontFamily/borderRadius/boxShadow/keyframes）、`App.tsx`（删 `<span>文</span>` 换 inline SVG 朱砂方印 logo + header/按钮全调色）、`ConfigDialog.tsx`（三个 `<section>` 包进 `bg-paper-2 border-line rounded-lg shadow-card` 卡片容器——修复用户点名的「没圆角」+ 全组件调色）、`FileQueueList.tsx`、`ResultDetail.tsx`（调色 + font-display + font-mono JSON 区）。
+  - **验证**：electron-vite build 成功，CSS 产物 22.83KB（坑点 2 标准 >210 字节），grep `--paper`×9 / `vermilion`×27 / `font-display`×6 命中，`amber`/`slate-200` 残留 0。272/272 测试全绿（17 文件）——修复了一处测试断言：`ResultDetail.test.tsx:34` 断言 `⚠️ 注意`，最初误删 emoji 已恢复。typecheck 零新增错误（7 条既存错误全在 main/preload 未触及文件）。
+  - **双端同步**：PowerShell `Copy-Item` 把 6 个文件从 WSL `\\wsl.localhost\Ubuntu\home\arcdent\github\ocr-app` 同步到 Windows 原生路径 `C:\Users\yanga\Projects\ocr-app`（坑点 4 约束，npm/build 必须在原生路径跑）。
+  - **未打包**：本次仅样式重设计，未触版本号、未打包 portable exe（用户未表达提交意图，按收尾流程 README/打包步骤不触发）。
+
+- **2026-06-20**: 更新项目级 CLAUDE.md 收尾流程约束——追加「先更新版本号 → 同步双端 → 再打包 portable exe → 验证产物」四步顺序铁律
+  - **动因**：版本号决定 `dist/OCR App-<version>-portable.exe` 文件名，若先打包再改版本号，旧版本 exe 会被覆盖无法回溯。
+  - **变更**：`.claude/CLAUDE.md` 新增「收尾流程约束（强约束，不可跳过）」章节，插入在「开发流程补充」与「参考」之间，串联坑点 3/4/5/6。全局「任务收尾执行顺序」仍为上层流程，本章节为项目专属追加。
+
 - **2026-06-20**: UI 优化与连接测试修复（6 项需求，全部完成，已打包 portable exe）
   - **设计**：brainstorming → spec（自审修正 2 处歧义：导出 toast 分支边界、滚动条 transition 技术风险）→ 实现计划。spec 见 `docs/superpowers/specs/2026-06-20-ui-polish-and-connection-fix.md`，计划见 `docs/superpowers/plans/2026-06-20-ui-polish-and-connection-fix.md`。
   - **根因修复 1（测试连接永远失败）**：`ConfigDialog` 点测试连接时主进程读的是已持久化 `configStore`，而表单新值只在 `localSettings` 未保存。改 `useSettingsStore` 的 `testOcrConnection/testLlmConnection` 接收 `currentSettings`，先 `SETTINGS_SET` 持久化再 `SETTINGS_TEST_*`；`ConfigDialog` 调用时传 `localSettings`。
@@ -56,15 +68,14 @@ dist/                       # electron-builder 打包产物（gitignore）
 
 ## 进行中
 
-无。UI 优化与连接测试修复已全部完成并打包。
+无。前端「纸本墨韵」重设计已完成样式层与验证，未提交 git、未打包。
 
 ## 下一步
 
 **立即**：
-1. 运行 `C:\Users\yanga\Projects\ocr-app\dist\OCR App-0.3.0-portable.exe` 手动冒烟：确认窗口无菜单栏、Header 无主标题、滚动条琥珀叠加式、配置对话框缩放淡入+大圆角、输入新配置点测试连接可成功、导出用 toast 提示。
-2. master 已有本次 9 个 commit + 上次结构化提示词 9 个 commit 待评估是否推送远端。
-1. 运行 `C:\Users\yanga\Projects\ocr-app\dist\OCR App-0.1.0-portable.exe` 验证单文件自解压运行、配置真实 TextIn + LLM 凭证跑通全链路，确认 LLM 输出为简洁纯文本（无 Markdown 标记、按类型分支）。
-2. 决定 `feat/structured-prompt-redesign` 分支是否合并回 master（9 个 commit 待合并）。
+1. 视觉冒烟：在 Windows 原生路径跑 `npm run dev`，肉眼确认——logo 是朱砂方印 SVG 无「文」字、全局纸白底+深墨文字+朱砂强调、ConfigDialog 三个 section 是有圆角卡片、圆角层级统一（input 8/button 12/card 16/dialog 24）、标题衬线+JSON mono、滚动条朱砂红。
+2. 若视觉通过，按收尾流程：bump `package.json` version（patch 或 minor）→ 同步双端 → `npm run make` 打 portable exe。
+3. master 有本次前端重设计改动待评估是否提交/推送。
 
 **后续**：
 - 真实 API 联调：用真实 OCR 文本（发票/聊天记录/报告）验证四类格式判定与输出效果。
@@ -83,4 +94,6 @@ dist/                       # electron-builder 打包产物（gitignore）
 8. **测试连接读已持久化配置的陷阱**: `settings:test-ocr`/`settings:test-llm` handler 读 `configStore.getSettings()`（已落盘），而配置对话框的新值只在渲染层 `localSettings`。若不在测试前先 `SETTINGS_SET`，测的是旧配置必然失败。已改为 store action 先静默保存当前表单再测试。后续若新增「测试」类按钮，确认它测的是当前表单值而非已持久化值。
 9. **导出 success 判定阈值**: `exportBatch` 返回 `{success, failed}`（成功数/失败数），IPC handler 必须用 `success>0 && failed===0` 才标记 `success:true`——`success>0` 会把部分失败误报成功。导出提示分三色：全成功 toast.success、部分成功部分失败 toast.warning（`exportedCount>0 && failedCount>0`）、全失败 toast.error（`exportedCount===0`）。
 10. **App.tsx 曾用不存在的 `window.electron`**: 既有 `handleExport` 用 `window.electron.ipcRenderer.invoke('dialog:pick-export-dir')`，但 preload 暴露的是 `window.api`（`exposeInMainWorld('api', ...)`），`window.electron` 不存在导致目录选择必抛错。已改 `window.api.invoke`。后续 IPC 调用统一走 `window.api`。
-11. **叠加式滚动条用 background-color 过渡**: `::-webkit-scrollbar-thumb` 的 `transition: opacity` 在部分 Chromium 版本对伪元素不稳定，改用 `transition: background-color`——非滚动时 thumb 背景透明，`.is-scrolling` 时变琥珀色，停止 800ms 后回透明，视觉等同淡入淡出。Firefox 用 `scrollbar-color` 始终可见（退化可接受）。
+11. **叠加式滚动条用 background-color 过渡**: `::-webkit-scrollbar-thumb` 的 `transition: opacity` 在部分 Chromium 版本对伪元素不稳定，改用 `transition: background-color`——非滚动时 thumb 背景透明，`.is-scrolling` 时变琥珀色，停止 800ms 后回透明，视觉等同淡入淡出。Firefox 用 `scrollbar-color` 始终可见（退化可接受）。注：2026-06-22 前端重设计后滚动条色已从琥珀 `rgba(245,158,11,*)` 改为朱砂 `rgba(200,68,42,*)`。
+12. **前端设计令牌体系（2026-06-22 重设计）**: 前端从 amber+slate 的 AI slop 迁移到「纸本墨韵」体系，令牌集中在 `index.css` `:root` CSS 变量 + `tailwind.config.js` extend 双层定义：颜色 `paper/paper-2/ink/ink-2/ink-3/line/vermilion/vermilion-2/vermilion-soft/seal/seal-soft/red-soft`；字体 `--font-display`（衬线 Iowan/Palatino/Songti SC 系统栈，离线可用无 Google Fonts 依赖）/`--font-body`（保留无衬线）/`--font-mono`（JSON 区）；圆角重定义 `sm8/md12/lg16/xl24`（input/button/card/dialog 四级体系）；阴影 `shadow-card`/`shadow-float`（纸感轻柔替代 shadow-2xl）。改样式只动这层令牌 + 组件 className，零逻辑改动。验证方式：`npm run build` 后 `out/renderer/assets/*.css` grep `vermilion`/`--paper`/`font-display` 有命中、`amber`/`slate-200` 残留为 0。
+13. **ConfigDialog「卡片没圆角」根因**: 三个 `<section>`（TextIn OCR/LLM/处理参数）原本没有卡片容器，只是裸 `<h3>` + 散落输入框堆在 `space-y-8` 里，所以视觉上「没圆角」。修复方式：每个 section 包进 `bg-paper-2 border border-line rounded-lg p-5 shadow-card`。这是卡片容器的来源，不是 dialog 本身（dialog 一直是 `rounded-3xl`）。

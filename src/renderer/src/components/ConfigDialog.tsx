@@ -51,13 +51,13 @@ export function ConfigDialog({ isOpen, onClose }: ConfigDialogProps) {
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-overlay-fade-in">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-zoom-in">
+      <div className="bg-paper rounded-xl shadow-float border border-line w-full max-w-2xl max-h-[90vh] flex flex-col animate-zoom-in">
         {/* Header */}
-        <div className="px-6 py-5 border-b border-slate-200 flex justify-between items-center bg-gradient-to-r from-amber-50 to-orange-50">
-          <h2 className="text-2xl font-bold text-slate-800">系统配置</h2>
+        <div className="px-6 py-5 border-b border-line flex justify-between items-center bg-paper-2">
+          <h2 className="font-display text-2xl font-bold text-ink">系统配置</h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-slate-200 rounded-lg transition-colors text-slate-600"
+            className="p-2 hover:bg-paper rounded-md transition-colors text-ink-3"
           >
             <X className="w-5 h-5" />
           </button>
@@ -66,14 +66,14 @@ export function ConfigDialog({ isOpen, onClose }: ConfigDialogProps) {
         {/* Content */}
         <div ref={contentRef} className="flex-1 overflow-y-auto p-6 space-y-8">
           {/* TextIn OCR Config */}
-          <section>
-            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-              <span className="w-1 h-6 bg-gradient-to-b from-amber-500 to-orange-500 rounded-full"></span>
+          <section className="bg-paper-2 border border-line rounded-lg p-5 shadow-card">
+            <h3 className="font-display text-lg font-bold text-ink mb-4 flex items-center gap-2.5">
+              <span className="w-1.5 h-1.5 bg-vermilion rounded-sm"></span>
               TextIn OCR 配置
             </h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                <label className="block text-sm font-semibold text-ink-2 mb-2">
                   App ID
                 </label>
                 <input
@@ -85,12 +85,12 @@ export function ConfigDialog({ isOpen, onClose }: ConfigDialogProps) {
                       textin: { ...localSettings.textin, appId: e.target.value },
                     })
                   }
-                  className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-amber-500 transition-colors"
+                  className="w-full px-4 py-2.5 bg-paper border border-line rounded-sm focus:outline-none focus:border-vermilion focus:ring-2 focus:ring-vermilion-soft transition-colors"
                   placeholder="输入 TextIn App ID"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                <label className="block text-sm font-semibold text-ink-2 mb-2">
                   Secret Code
                 </label>
                 <input
@@ -102,12 +102,12 @@ export function ConfigDialog({ isOpen, onClose }: ConfigDialogProps) {
                       textin: { ...localSettings.textin, secretCode: e.target.value },
                     })
                   }
-                  className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-amber-500 transition-colors"
+                  className="w-full px-4 py-2.5 bg-paper border border-line rounded-sm focus:outline-none focus:border-vermilion focus:ring-2 focus:ring-vermilion-soft transition-colors"
                   placeholder="输入 Secret Code"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                <label className="block text-sm font-semibold text-ink-2 mb-2">
                   Base URL
                 </label>
                 <input
@@ -119,31 +119,31 @@ export function ConfigDialog({ isOpen, onClose }: ConfigDialogProps) {
                       textin: { ...localSettings.textin, baseUrl: e.target.value },
                     })
                   }
-                  className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-amber-500 transition-colors"
+                  className="w-full px-4 py-2.5 bg-paper border border-line rounded-sm focus:outline-none focus:border-vermilion focus:ring-2 focus:ring-vermilion-soft transition-colors"
                   placeholder="https://api.textin.com"
                 />
               </div>
               <button
                 onClick={handleTestOcr}
                 disabled={isTesting}
-                className="w-full py-2.5 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 text-amber-700 rounded-xl font-semibold hover:from-amber-100 hover:to-orange-100 disabled:opacity-50 transition-all duration-200"
+                className="w-full py-2.5 bg-paper border border-vermilion-soft text-vermilion rounded-md font-semibold hover:bg-vermilion-soft disabled:opacity-50 transition-all duration-200"
               >
                 {isTesting ? '测试中...' : '测试 OCR 连接'}
               </button>
               {ocrTestResult && (
                 <div
-                  className={`flex items-start gap-3 p-4 rounded-xl ${
+                  className={`flex items-start gap-3 p-4 rounded-md ${
                     ocrTestResult.success
-                      ? 'bg-emerald-50 border-2 border-emerald-300'
-                      : 'bg-red-50 border-2 border-red-300'
+                      ? 'bg-seal-soft border border-seal'
+                      : 'bg-red-soft border border-red-300'
                   }`}
                 >
                   {ocrTestResult.success ? (
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                    <CheckCircle2 className="w-5 h-5 text-seal flex-shrink-0 mt-0.5" />
                   ) : (
                     <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                   )}
-                  <p className={`text-sm font-medium ${ocrTestResult.success ? 'text-emerald-800' : 'text-red-800'}`}>
+                  <p className={`text-sm font-medium ${ocrTestResult.success ? 'text-seal' : 'text-red-800'}`}>
                     {ocrTestResult.message}
                   </p>
                 </div>
@@ -152,14 +152,14 @@ export function ConfigDialog({ isOpen, onClose }: ConfigDialogProps) {
           </section>
 
           {/* LLM Config */}
-          <section>
-            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-              <span className="w-1 h-6 bg-gradient-to-b from-orange-500 to-yellow-500 rounded-full"></span>
+          <section className="bg-paper-2 border border-line rounded-lg p-5 shadow-card">
+            <h3 className="font-display text-lg font-bold text-ink mb-4 flex items-center gap-2.5">
+              <span className="w-1.5 h-1.5 bg-vermilion rounded-sm"></span>
               LLM 配置
             </h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                <label className="block text-sm font-semibold text-ink-2 mb-2">
                   Base URL
                 </label>
                 <input
@@ -171,12 +171,12 @@ export function ConfigDialog({ isOpen, onClose }: ConfigDialogProps) {
                       llm: { ...localSettings.llm, baseUrl: e.target.value },
                     })
                   }
-                  className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-orange-500 transition-colors"
+                  className="w-full px-4 py-2.5 bg-paper border border-line rounded-sm focus:outline-none focus:border-vermilion focus:ring-2 focus:ring-vermilion-soft transition-colors"
                   placeholder="https://api.openai.com/v1"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                <label className="block text-sm font-semibold text-ink-2 mb-2">
                   API Key
                 </label>
                 <input
@@ -188,12 +188,12 @@ export function ConfigDialog({ isOpen, onClose }: ConfigDialogProps) {
                       llm: { ...localSettings.llm, apiKey: e.target.value },
                     })
                   }
-                  className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-orange-500 transition-colors"
+                  className="w-full px-4 py-2.5 bg-paper border border-line rounded-sm focus:outline-none focus:border-vermilion focus:ring-2 focus:ring-vermilion-soft transition-colors"
                   placeholder="输入 API Key"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                <label className="block text-sm font-semibold text-ink-2 mb-2">
                   模型
                 </label>
                 <input
@@ -205,31 +205,31 @@ export function ConfigDialog({ isOpen, onClose }: ConfigDialogProps) {
                       llm: { ...localSettings.llm, model: e.target.value },
                     })
                   }
-                  className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-orange-500 transition-colors"
+                  className="w-full px-4 py-2.5 bg-paper border border-line rounded-sm focus:outline-none focus:border-vermilion focus:ring-2 focus:ring-vermilion-soft transition-colors"
                   placeholder="gpt-4"
                 />
               </div>
               <button
                 onClick={handleTestLlm}
                 disabled={isTesting}
-                className="w-full py-2.5 bg-gradient-to-r from-orange-50 to-yellow-50 border-2 border-orange-300 text-orange-700 rounded-xl font-semibold hover:from-orange-100 hover:to-yellow-100 disabled:opacity-50 transition-all duration-200"
+                className="w-full py-2.5 bg-paper border border-vermilion-soft text-vermilion rounded-md font-semibold hover:bg-vermilion-soft disabled:opacity-50 transition-all duration-200"
               >
                 {isTesting ? '测试中...' : '测试 LLM 连接'}
               </button>
               {llmTestResult && (
                 <div
-                  className={`flex items-start gap-3 p-4 rounded-xl ${
+                  className={`flex items-start gap-3 p-4 rounded-md ${
                     llmTestResult.success
-                      ? 'bg-emerald-50 border-2 border-emerald-300'
-                      : 'bg-red-50 border-2 border-red-300'
+                      ? 'bg-seal-soft border border-seal'
+                      : 'bg-red-soft border border-red-300'
                   }`}
                 >
                   {llmTestResult.success ? (
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                    <CheckCircle2 className="w-5 h-5 text-seal flex-shrink-0 mt-0.5" />
                   ) : (
                     <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                   )}
-                  <p className={`text-sm font-medium ${llmTestResult.success ? 'text-emerald-800' : 'text-red-800'}`}>
+                  <p className={`text-sm font-medium ${llmTestResult.success ? 'text-seal' : 'text-red-800'}`}>
                     {llmTestResult.message}
                   </p>
                 </div>
@@ -238,14 +238,14 @@ export function ConfigDialog({ isOpen, onClose }: ConfigDialogProps) {
           </section>
 
           {/* Processing Config */}
-          <section>
-            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-              <span className="w-1 h-6 bg-gradient-to-b from-emerald-500 to-teal-600 rounded-full"></span>
+          <section className="bg-paper-2 border border-line rounded-lg p-5 shadow-card">
+            <h3 className="font-display text-lg font-bold text-ink mb-4 flex items-center gap-2.5">
+              <span className="w-1.5 h-1.5 bg-seal rounded-sm"></span>
               处理参数
             </h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                <label className="block text-sm font-semibold text-ink-2 mb-2">
                   并发数量
                 </label>
                 <input
@@ -259,12 +259,12 @@ export function ConfigDialog({ isOpen, onClose }: ConfigDialogProps) {
                       concurrency: parseInt(e.target.value, 10),
                     })
                   }
-                  className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-amber-500 transition-colors"
+                  className="w-full px-4 py-2.5 bg-paper border border-line rounded-sm focus:outline-none focus:border-vermilion focus:ring-2 focus:ring-vermilion-soft transition-colors"
                 />
-                <p className="text-xs text-slate-500 mt-2">同时处理的文件数量（1-10）</p>
+                <p className="text-xs text-ink-3 mt-2">同时处理的文件数量（1-10）</p>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                <label className="block text-sm font-semibold text-ink-2 mb-2">
                   分块阈值（字符数）
                 </label>
                 <input
@@ -279,25 +279,25 @@ export function ConfigDialog({ isOpen, onClose }: ConfigDialogProps) {
                       chunkThreshold: parseInt(e.target.value, 10),
                     })
                   }
-                  className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-amber-500 transition-colors"
+                  className="w-full px-4 py-2.5 bg-paper border border-line rounded-sm focus:outline-none focus:border-vermilion focus:ring-2 focus:ring-vermilion-soft transition-colors"
                 />
-                <p className="text-xs text-slate-500 mt-2">超过此长度的文本将分块处理</p>
+                <p className="text-xs text-ink-3 mt-2">超过此长度的文本将分块处理</p>
               </div>
             </div>
           </section>
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3 bg-gradient-to-r from-amber-50 to-orange-50">
+        <div className="px-6 py-4 border-t border-line flex justify-end gap-3 bg-paper-2">
           <button
             onClick={onClose}
-            className="px-5 py-2.5 border-2 border-slate-300 text-slate-700 rounded-xl font-semibold hover:bg-slate-100 transition-all duration-200"
+            className="px-5 py-2.5 border border-line text-ink-2 rounded-md font-semibold hover:bg-paper transition-all duration-200"
           >
             取消
           </button>
           <button
             onClick={handleSave}
-            className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-semibold hover:from-amber-600 hover:to-orange-600 shadow-lg transition-all duration-200"
+            className="px-5 py-2.5 bg-vermilion text-white rounded-md font-semibold hover:bg-vermilion-2 shadow-card active:animate-seal-press transition-all duration-200"
           >
             保存配置
           </button>
