@@ -30,7 +30,15 @@ dist/                       # electron-builder 打包产物（gitignore）
 
 ## 最近操作
 
-- **2026-06-22**: 替换应用图标——旧琥珀渐变扫描文档 → 新「放大镜 + 文字行」纯线条图标（未打包，仅换资源）
+- **2026-06-22**: v1.0.1 发布（CI 路径 A）——图标替换 + 版本号 bump 触发 tag 自动打包
+  - **触发**：用户说「提交当前改动 打新 tag 推送」。改动 = 图标替换（icon.svg/ICON_README/icon-256.png/icon.ico）+ package.json 1.0.0→1.0.1 + AGENTS.md 补记录。`.clinerules-*`（5 个 Cline IDE 配置）和 `resources/icon-128.png`/`icon-64.png`（ICO 生成中间尺寸）保留未追踪，不入提交。
+  - **前置验证（路径 A 步骤 4）**：①WSL 原生路径 `npm install` 重生成 `package-lock.json`（lock 此前停在 1.0.0，与 package.json 1.0.1 不同步，CI `npm ci` 必报 out of sync——坑点已记录）；②`npm run typecheck` 零错误；③vitest 在 Windows 原生路径 `C:\Users\yanga\Projects\ocr-app` 跑，275/275 通过（17 文件，3.61s）——**WSL UNC 路径经 `wsl` 调用跑 vitest 会触发 vite-node 正则炸 `/(?:^|/@fs/)\(:[\/])/`，因 cwd 被暴露成 `file://wsl.localhost/...`，必须在 WSL 原生终端或 Windows 原生路径跑**；④lock 同步到 Windows 原生路径副本。
+  - **README 刷新**：badge `Version-1.0.0`→`1.0.1`、产物名 `OCR App-1.0.0-portable.exe`→`1.0.1`、tag 示例 `v1.0.0`→`v1.0.1`。
+  - **commit**：`cc0f558` `feat: replace icon with magnifier-over-text-lines, bump to 1.0.1`，7 文件（AGENTS.md/README.md/package.json/package-lock.json/resources/{icon.svg,ICON_README.md,icon-256.png}）。push master + tag `v1.0.1` 全成功。
+  - **CI**：run `27963504205`，3m9s 全绿（Typecheck → Build → Package portable exe → Upload → Attach to Release）。Release https://github.com/ArcDent/ocr-app/releases/tag/v1.0.1，portable exe asset 已上传。
+  - **CI annotation 提醒**：`Node.js 20 is deprecated`（actions/checkout@v4 等被强制跑 Node 24）。当前仍成功，但未来 workflow 可能需升 actions 版本或 node-version——记为待观察项，暂不改。
+
+- **2026-06-22**: 替换应用图标——旧琥珀渐变扫描文档 → 新「放大镜 + 文字行」纯线条图标（已随 v1.0.1 打包发布）
   - **动机**：旧 `resources/icon.svg` 用 `#FF9A56 → #FFDD67` 琥珀渐变 + 3D 透视文档 + 白色扫描光束动画，与 renderer 当前的「纸本墨韵 + 朱砂 + 青墨绿 + 衬线」CSS 主题（`index.css` 的 `--ink-2 #4a453e` / `--vermilion #c8442a`）割裂。用户要求透明背景、简洁线条、无动画。
   - **brainstorming**：经 visual companion 浏览器 mockup 共 9 个方向（A–I），用户选 C（放大镜圈文字行）；又经 C1–C4 镜内表达变体 + U1/U2 双色加粗变体后，用户最终回到 C 原稿静态版。设计：4 条墨色文字行（`#4a453e` width 8）+ 1 把朱砂放大镜（`#c8442a` ring r=48 width 10 + handle width 12），256×256 透明背景，无填充无阴影无动画，SVG 与 ICO 像素一致。
   - **生成链路**（绕开 ImageMagick/Inkscape，用 headless Chrome + Pillow）：①`google-chrome --headless=new --default-background-color=00000000 --window-size=256,256 --screenshot` 把 WSL 端 `icon.svg` 渲染成 `icon-256.png`（4740 字节，PIL 采样 6 点全 `a=0` 确认真透明）；②PIL `Image.resize((s,s), LANCZOS)` 生成 256/128/64/48/32/16 六个 PNG；③手写 PNG-in-ICO 封装（`struct.pack('<HHH'` header + `'<BBBBHHII'` per entry，Vista+ 支持），输出 `icon.ico` 13198 字节含 6 尺寸，PIL `IcoFile.sizes()` 验证通过——满足坑点 6 的 256×256 硬约束。chrome-devtools MCP 的 `evaluate_script` + `canvas.toDataURL` 路径也试过，PNG 透明度 OK 但 base64 经传输给 Python 时被损坏（PIL 报 `unrecognized data stream`），改走 headless chrome 文件输出更稳。
@@ -92,12 +100,12 @@ dist/                       # electron-builder 打包产物（gitignore）
   - **双端同步**：PowerShell `Copy-Item` 把 6 个文件从 WSL `\\wsl.localhost\Ubuntu\home\arcdent\github\ocr-app` 同步到 Windows 原生路径 `C:\Users\yanga\Projects\ocr-app`（坑点 4 约束，npm/build 必须在原生路径跑）。
 ## 进行中
 
-无。v1.0.0 已发布（GitHub 仓库 ArcDent/ocr-app，tag v1.0.0，portable exe 已上传 Release）。收敛 + README 重写 + CI workflow 全部完成。
+无。v1.0.1 已发布（GitHub 仓库 ArcDent/ocr-app，tag v1.0.1，CI 3m9s 全绿，portable exe 已上传 Release https://github.com/ArcDent/ocr-app/releases/tag/v1.0.1）。「纸本墨韵」重设计 + 图标替换全部完成。
 
 ## 下一步
 
 **立即**：
-1. 视觉冒烟：下载 Release 的 `OCR-App-1.0.0-portable.exe` 跑一遍，确认功能正常（OCR/结构化/摘要/导出/历史）。
+1. 视觉冒烟：下载 Release 的 `OCR-App-1.0.1-portable.exe` 跑一遍，确认新图标在任务栏/标题栏/安装器渲染正常（尤其 16x16 小尺寸下放大镜把手是否清晰）。
 2. 真实 API 联调：用真实 OCR 文本（发票/聊天记录/报告）验证四类格式判定与输出效果。
 
 **后续**：
