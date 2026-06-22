@@ -34,7 +34,7 @@ describe('ConfigStore', () => {
       const Store = electronStore as any;
       Store.mockClear();
 
-      const newStore = new ConfigStore();
+      new ConfigStore();
 
       expect(Store).toHaveBeenCalledWith(expect.objectContaining({
         name: 'ocr-app-config',
@@ -46,7 +46,7 @@ describe('ConfigStore', () => {
       const Store = electronStore as any;
       Store.mockClear();
 
-      const newStore = new ConfigStore({ encryptionKey: 'custom-key' });
+      new ConfigStore({ encryptionKey: 'custom-key' });
 
       expect(Store).toHaveBeenCalledWith(expect.objectContaining({
         encryptionKey: 'custom-key'

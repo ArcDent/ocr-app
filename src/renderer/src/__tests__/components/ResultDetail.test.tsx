@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import '@testing-library/jest-dom'
+import { describe, it, expect, vi } from 'vitest'
 import { ResultDetail, ResultTab } from '../../components/ResultDetail'
 import { JobResult } from '../../../../shared/types'
 

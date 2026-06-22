@@ -20,11 +20,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "esModuleInterop": true,
-    "paths": {
-      "@/*": [
-        "./src/renderer/src/*"
-      ]
-    },
     "baseUrl": ".",
     "forceConsistentCasingInFileNames": true
   },
