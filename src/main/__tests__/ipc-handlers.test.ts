@@ -13,6 +13,17 @@ vi.mock('electron', () => ({
   IpcMainInvokeEvent: {},
 }))
 
+// ============= fs mock (for directory expansion in OCR_PICK_FILES) =============
+// We mock node:fs/promises so the directory-pick handler can be tested without
+// touching the real filesystem. readdir returns Dirent-like objects; only
+// isDirectory + name are used by collectSupportedFiles.
+const { mockReaddir } = vi.hoisted(() => ({
+  mockReaddir: vi.fn(),
+}))
+vi.mock('node:fs/promises', () => ({
+  readdir: mockReaddir,
+}))
+
 // ============= Module mocks (top-level, hoisted) =============
 vi.mock('../store', () => ({
   configStore: {
@@ -53,6 +64,7 @@ vi.mock('../export/markdown-exporter', () => ({
 }))
 
 // ============= Imports after mocks =============
+import path from 'path'
 import { registerIpcHandlers } from '../ipc-handlers'
 import { dialog } from 'electron'
 import { configStore } from '../store'
@@ -84,6 +96,8 @@ describe('registerIpcHandlers', () => {
     historyInstance.listHistory = vi.fn().mockReturnValue([])
     historyInstance.getJob = vi.fn().mockResolvedValue(null)
     historyInstance.clearHistory = vi.fn().mockResolvedValue(undefined)
+    // Default: directory expansion tests override this per-test.
+    mockReaddir.mockResolvedValue([])
     // Re-register so handlers capture the fresh mock state
     registerIpcHandlers()
   })
@@ -199,22 +213,73 @@ describe('registerIpcHandlers', () => {
       )
     })
 
-    it('uses openDirectory property and no filters for directory type', async () => {
+    it('uses openDirectory property and expands the picked directory into supported files', async () => {
       vi.mocked(dialog.showOpenDialog).mockResolvedValue({
         canceled: false,
-        filePaths: ['/dir'],
+        filePaths: ['/parent'],
       } as any)
+      // Simulate /parent containing: a.jpg, b.PDF (uppercase ext), ignore.txt,
+      // and a nested sub dir with c.png. ignore.txt must be filtered out.
+      mockReaddir.mockImplementation(async (dir: string) => {
+        if (dir === '/parent') {
+          return [
+            { name: 'a.jpg', isDirectory: () => false },
+            { name: 'b.PDF', isDirectory: () => false },
+            { name: 'ignore.txt', isDirectory: () => false },
+            { name: 'sub', isDirectory: () => true },
+          ]
+        }
+        if (dir === path.join('/parent', 'sub')) {
+          return [{ name: 'c.png', isDirectory: () => false }]
+        }
+        return []
+      })
+
       const result = await handlers[IPC_CHANNELS.OCR_PICK_FILES](
         {},
         { type: 'directory' }
       )
-      expect(result).toEqual(['/dir'])
+
+      // Sorted for stable cross-platform comparison (path separators differ).
+      const normalized = result.map((p: string) => p.replace(/\\/g, '/')).sort()
+      expect(normalized).toEqual([
+        path.join('/parent', 'a.jpg').replace(/\\/g, '/'),
+        path.join('/parent', 'b.PDF').replace(/\\/g, '/'),
+        path.join('/parent', 'sub', 'c.png').replace(/\\/g, '/'),
+      ].sort())
       expect(dialog.showOpenDialog).toHaveBeenCalledWith(
         expect.objectContaining({
-          properties: ['openDirectory'],
-          filters: [],
+          properties: ['openDirectory', 'multiSelections'],
         })
       )
+    })
+
+    it('returns empty array when picked directory contains no supported files', async () => {
+      vi.mocked(dialog.showOpenDialog).mockResolvedValue({
+        canceled: false,
+        filePaths: ['/empty'],
+      } as any)
+      mockReaddir.mockResolvedValue([
+        { name: 'notes.md', isDirectory: () => false },
+      ])
+      const result = await handlers[IPC_CHANNELS.OCR_PICK_FILES](
+        {},
+        { type: 'directory' }
+      )
+      expect(result).toEqual([])
+    })
+
+    it('returns empty array when directory cannot be read', async () => {
+      vi.mocked(dialog.showOpenDialog).mockResolvedValue({
+        canceled: false,
+        filePaths: ['/nope'],
+      } as any)
+      mockReaddir.mockRejectedValue(new Error('EACCES'))
+      const result = await handlers[IPC_CHANNELS.OCR_PICK_FILES](
+        {},
+        { type: 'directory' }
+      )
+      expect(result).toEqual([])
     })
 
     it('returns empty array when canceled', async () => {

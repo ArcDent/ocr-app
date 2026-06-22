@@ -1,4 +1,6 @@
 import { ipcMain, dialog, app, IpcMainInvokeEvent } from 'electron'
+import * as fs from 'node:fs/promises'
+import * as path from 'path'
 import { IPC_CHANNELS, type IpcRequest, type IpcResponse } from '../shared/types'
 import { configStore } from './store'
 import { TextInClient } from './ocr/textin-client'
@@ -6,6 +8,37 @@ import { LlmClient } from './llm/llm-client'
 import { Orchestrator } from './pipeline/orchestrator'
 import { HistoryManager } from './history/history-manager'
 import { exportBatch } from './export/markdown-exporter'
+
+// Extensions supported by both the file picker filter and the TextIn API.
+// Keep in sync with the `filters` array in the OCR_PICK_FILES handler.
+const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'pdf']
+
+/**
+ * Recursively collect files under `dir` whose extension is supported.
+ * Expanding directories here (rather than returning the directory path) is
+ * what prevents EISDIR when TextInClient.recognizeFile later calls fs.readFile
+ * on the picked path.
+ */
+async function collectSupportedFiles(dir: string): Promise<string[]> {
+  let entries: import('node:fs').Dirent[]
+  try {
+    entries = await fs.readdir(dir, { withFileTypes: true })
+  } catch {
+    return []
+  }
+  const collected: string[] = []
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      collected.push(...(await collectSupportedFiles(full)))
+    } else if (
+      SUPPORTED_EXTENSIONS.includes(path.extname(entry.name).slice(1).toLowerCase())
+    ) {
+      collected.push(full)
+    }
+  }
+  return collected
+}
 
 let historyManager: HistoryManager | null = null
 let currentOrchestrator: Orchestrator | null = null
@@ -63,14 +96,26 @@ export function registerIpcHandlers() {
   ipcMain.handle(
     IPC_CHANNELS.OCR_PICK_FILES,
     async (_, data: IpcRequest['ocr:pick-files']): Promise<IpcResponse['ocr:pick-files']> => {
-      const properties: ('openFile' | 'openDirectory' | 'multiSelections')[] =
-        data.type === 'directory' ? ['openDirectory'] : ['openFile', 'multiSelections']
-      const filters =
-        data.type === 'files'
-          ? [{ name: 'Images & PDFs', extensions: ['jpg', 'jpeg', 'png', 'pdf'] }]
-          : []
+      if (data.type === 'directory') {
+        // Pick directories, then expand each into its supported files.
+        // Returning directory paths directly causes EISDIR downstream when
+        // TextInClient.recognizeFile calls fs.readFile on a directory.
+        const result = await dialog.showOpenDialog({
+          properties: ['openDirectory', 'multiSelections'],
+          title: '选择文件夹',
+        })
+        if (result.canceled) return []
+        const files: string[] = []
+        for (const dir of result.filePaths) {
+          files.push(...(await collectSupportedFiles(dir)))
+        }
+        return files
+      }
 
-      const result = await dialog.showOpenDialog({ properties, filters })
+      const result = await dialog.showOpenDialog({
+        properties: ['openFile', 'multiSelections'],
+        filters: [{ name: 'Images & PDFs', extensions: SUPPORTED_EXTENSIONS }],
+      })
       if (result.canceled) return []
       return result.filePaths
     }

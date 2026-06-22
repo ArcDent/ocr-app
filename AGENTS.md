@@ -30,6 +30,13 @@ dist/                       # electron-builder 打包产物（gitignore）
 
 ## 最近操作
 
+- **2026-06-22**: 修复两个 bug（EISDIR 选文件夹崩溃 + 标题栏未统一风格），已打包 0.4.2 portable exe
+  - **根因 1（EISDIR）**：`ipc-handlers.ts` 的 `ocr:pick-files` 对 `type==='directory'` 分支直接返回目录路径（如 `D:\imgs`），renderer 把目录路径当文件 push 进 `pendingFiles`，`startBatch` 传给 `Orchestrator` → `TextInClient.recognizeFile` 调 `fs.readFile(目录)` → Node 抛 EISDIR。修复：主进程新增 `collectSupportedFiles(dir)` 递归展开目录为受支持扩展名（jpg/jpeg/png/pdf，与 files 分支 filters 一致）文件绝对路径列表；`directory` 分支调它返回文件列表而非目录路径。`readdir` 失败（EACCES 等）返回空数组不抛。测试：mock `node:fs/promises` 的 `readdir`，新增 3 个用例（展开含子目录+大小写扩展名过滤+忽略非图片、空目录返回空、readdir 失败返回空），原「返回目录路径」用例改为验证展开行为。
+  - **根因 2（标题栏未统一风格）**：`main/index.ts` 的 `BrowserWindow` 未配 `titleBarStyle`/`titleBarOverlay`，用 Windows 原生标题栏（系统色背景+原生关闭按钮）与 app 朱砂/纸色主题割裂。修复（context7 查 Electron 官方文档确认 API）：`titleBarStyle: 'hidden'` + `titleBarOverlay: { color: '#f3eee2'(--paper-2), symbolColor: '#1a1815'(--ink), height: 40 }`（Windows/Linux 用系统原生覆盖控件但配色自定义；macOS 自动保留原生交通灯，overlay 选项被忽略）；`App.tsx` header 加 `style={{ WebkitAppRegion: 'drag' }}` 让整条可拖拽，设置按钮加 `WebkitAppRegion: 'no-drag'` 保持可点击；header 右侧 `pr-[140px]`（仅 Windows/Linux，macOS 用 `navigator.platform` 判断跳过）为窗口控制按钮预留空间避免遮挡。
+  - **验证**：typecheck 零新增错误（7 条既存错误全在 store.test/orchestrator.test/preload 未触及文件）；274/274 测试全过（17 文件，新增 3 个目录展开用例）；electron-vite build 成功，CSS 22.96KB（含 vermilion×26/paper-2×5/c8442a×1），主进程 bundle 含 `titleBarStyle`/`titleBarOverlay`/`collectSupportedFiles`/`SUPPORTED_EXTENSIONS`，renderer bundle 含 `WebkitAppRegion`×2（drag+no-drag）。
+  - **双端同步**：PowerShell `Copy-Item` 把 4 个修改文件 + package.json 从 WSL `\\wsl.localhost\ubuntu\home\arcdent\github\ocr-app` 同步到 Windows `C:\Users\yanga\Projects\ocr-app`（坑点 3 约束），哈希校验全 MATCH。
+  - **打包**：版本号 bump 0.4.1→0.4.2（patch，纯 bug 修复）；`npm run make` 一次成功无 ECONNRESET；产出 `dist/OCR App-0.4.2-portable.exe`（66.68 MB）+ `dist/win-unpacked/ocr-app.exe`（168.71 MB）。
+
 - **2026-06-22**: 修复 UI 三处样式 bug（圆角/滚动条/顶栏风格），已打包 0.4.1 portable exe
   - **根因 1（滚动条未隐藏，3 处）**：`index.css` 设计意图是「静止时 thumb 透明、滚动时朱砂显示」，规则 `.scroll-overlay::-webkit-scrollbar-thumb { background: transparent }` + `.is-scrolling::-webkit-scrollbar-thumb { background: vermilion }`。`useScrollOverlay` hook 只在滚动瞬间加 `is-scrolling`，静止时移除，因此元素必须**静态拥有 `scroll-overlay` 基类**才能在静止时匹配规则1 隐藏。但三个滚动容器只挂了 ref 没加基类：`ConfigDialog.tsx` contentRef、`FileQueueList.tsx` scrollRef、`ResultDetail.tsx` scrollRef。修复：三处 div className 追加 `scroll-overlay`。
   - **根因 2（ConfigDialog 没有圆角）**：dialog 卡片是 `rounded-xl`（24px），但直接子元素 Header（`bg-paper-2`）和 Footer（`bg-paper-2`）背景色贴边铺满、自身无圆角，且卡片无 `overflow-hidden`，子块方角盖过父级圆角。修复：dialog 卡片 className 追加 `overflow-hidden`，让 Header/Footer 被父级圆角裁剪。
@@ -76,14 +83,13 @@ dist/                       # electron-builder 打包产物（gitignore）
 
 ## 进行中
 
-无。UI 三处样式 bug 修复已完成，5 文件已 git add 待 commit。
+无。两个 bug 修复已打包为 0.4.2 portable exe，5 文件已改未 commit（package.json + 4 源码）。
 
 ## 下一步
 
 **立即**：
-1. commit 当前 staged 的 5 个文件（建议 message: `fix: hide scrollbars, restore dialog rounded corners, align header style`）。
-2. 视觉冒烟：跑 `OCR App-0.4.1-portable.exe`，肉眼确认——ConfigDialog 四角圆角正常、三个滚动区静止时滚动条隐藏滚动时朱砂显示、顶栏与 dialog header padding/字号对齐且有朱砂竖条标识。
-3. 若视觉通过，推送 master。
+1. 视觉冒烟：跑 `dist/OCR App-0.4.2-portable.exe`，确认——选文件夹不再报 EISDIR、目录内图片/PDF 被正确加入队列；标题栏（含关闭按钮那行）背景为 paper-2 暖纸色、按钮符号为 ink 墨色、整条 header 可拖拽移动窗口、设置按钮可点击。
+2. 若视觉通过，commit 当前 5 个修改文件（建议 message: `fix: expand picked directories to file list (EISDIR) and unify title bar style (frameless)`），推送 master。
 
 **后续**：
 - 真实 API 联调：用真实 OCR 文本（发票/聊天记录/报告）验证四类格式判定与输出效果。
@@ -107,3 +113,5 @@ dist/                       # electron-builder 打包产物（gitignore）
 13. **ConfigDialog「卡片没圆角」根因**: 三个 `<section>`（TextIn OCR/LLM/处理参数）原本没有卡片容器，只是裸 `<h3>` + 散落输入框堆在 `space-y-8` 里，所以视觉上「没圆角」。修复方式：每个 section 包进 `bg-paper-2 border border-line rounded-lg p-5 shadow-card`。这是卡片容器的来源，不是 dialog 本身（dialog 一直是 `rounded-3xl`）。
 14. **叠加式滚动条必须静态挂 `scroll-overlay` 基类（2026-06-22 修复）**: `index.css` 的规则是 `.scroll-overlay` 和 `.is-scrolling` 两类共享 `::-webkit-scrollbar-thumb { background: transparent }`，只有 `.is-scrolling` 覆盖为朱砂色。`useScrollOverlay` hook 只在滚动瞬间加 `is-scrolling`、静止 800ms 后移除，所以元素若不静态拥有 `scroll-overlay` 基类，静止时不匹配任何规则 → 浏览器默认丑滚动条常驻。修复：所有用 `useScrollOverlay` 的滚动容器 className 必须追加 `scroll-overlay` 基类。后续新增滚动容器时，`ref` + `scroll-overlay` 基类 + `useScrollOverlay(ref)` 三件套缺一不可。
 15. **dialog 子元素方角遮挡父级圆角（2026-06-22 修复）**: `rounded-xl` 的卡片若直接子元素（Header/Footer）背景色贴边铺满且无 `overflow-hidden`，子块方角会盖过父级圆角，视觉上整个弹窗呈现方角。修复：dialog 卡片加 `overflow-hidden` 让子块被父级圆角裁剪。后续 dialog/卡片容器若 header/footer 贴边铺满，父级必须 `overflow-hidden`。
+16. **目录选择必须主进程展开为文件列表（2026-06-22 修复 EISDIR）**: `dialog.showOpenDialog({properties:['openDirectory']})` 返回的是目录路径，不能直接喂给 `fs.readFile`（抛 EISDIR）。主进程 `ocr:pick-files` 的 `directory` 分支必须用 `fs.readdir({withFileTypes:true})` 递归展开目录为受支持扩展名（jpg/jpeg/png/pdf，与 files 分支 filters 一致）文件绝对路径列表。`readdir` 失败（EACCES 等）返回空数组不抛，避免单个无权限子目录中断整个批次。后续若新增其他受支持扩展名，同步更新 `SUPPORTED_EXTENSIONS` 常量与 files 分支 filters。
+17. **frameless 标题栏用 titleBarOverlay 而非自绘窗口控件（2026-06-22 修复）**: `BrowserWindow` 配 `titleBarStyle: 'hidden'` + `titleBarOverlay: {color, symbolColor, height}`（Windows/Linux）让系统原生绘制 min/max/close 控件但用 app 主题色（paper-2 背景 #f3eee2 + ink 符号 #1a1815 + 40px 与 header 视觉高度对齐），macOS 自动保留原生交通灯且 overlay 选项被忽略。React 侧 header 加 `style={{WebkitAppRegion:'drag'}}` 让整条可拖拽，按钮加 `WebkitAppRegion:'no-drag'` 保持可点击。`WebkitAppRegion` 是 Electron 专属 CSS 属性，React CSS 类型不含需 `as React.CSSProperties` 强转，且作为内联 style 不进打包 CSS（运行时挂 DOM），验证时 grep renderer JS bundle 而非 CSS。Windows/Linux 上 header 右侧需 `pr-[140px]` 为系统控件预留空间（macOS 用 `navigator.platform` 判断跳过）。后续若 header 布局变化，确认 overlay height 与 header 实际视觉高度一致避免色带错位。

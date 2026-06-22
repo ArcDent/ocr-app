@@ -68,6 +68,14 @@ export default function App() {
     e.preventDefault()
   }
 
+  // macOS keeps the native traffic lights on the left; Windows/Linux render
+  // the min/max/close overlay at the right edge, so reserve a right strip on
+  // those platforms to keep the settings button clear of the native controls.
+  const isMac =
+    typeof navigator !== 'undefined' &&
+    /Mac|iPhone|iPod|iPad/.test(navigator.platform || navigator.userAgent)
+  const headerPadRight = isMac ? '' : 'pr-[140px]'
+
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault()
     if (isProcessing) return
@@ -79,8 +87,13 @@ export default function App() {
 
   return (
     <div className="h-screen flex flex-col bg-paper text-ink overflow-hidden" onDragOver={handleDragOver} onDrop={handleDrop}>
-      {/* Header */}
-      <header className="bg-paper-2 border-b border-line px-6 py-5 flex items-center justify-between shrink-0 z-10">
+      {/* Header — also the window drag region (titleBarStyle: 'hidden' in main).
+          headerPadRight reserves space for the Windows/Linux titleBarOverlay
+          min/max/close controls so the settings button never sits under them. */}
+      <header
+        className={`bg-paper-2 border-b border-line px-6 py-5 flex items-center justify-between shrink-0 z-10 ${headerPadRight}`}
+        style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+      >
         <div className="flex items-center gap-3">
           {/* Vermilion seal logo — custom SVG, replaces the ugly "文" placeholder */}
           <svg
@@ -108,6 +121,7 @@ export default function App() {
         <button
           onClick={() => setIsConfigOpen(true)}
           className="p-2.5 text-ink-2 hover:text-ink hover:bg-paper rounded-lg transition-all duration-200"
+          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
           title="设置"
         >
           <Settings className="w-5 h-5" />
