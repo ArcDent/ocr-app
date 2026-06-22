@@ -1,64 +1,81 @@
-# OCR App Icon - Scanning Beam Design
+# OCR App Icon — Magnifier over Text Lines
 
-## Design Specifications
+## Design
 
-**Concept**: 3D perspective document with animated scanning beam  
-**Color Scheme**: Amber-Honey gradient (#FF9A56 → #FFDD67)  
-**Style**: Modern, professional, matches UI theme  
+**Concept**: A vermilion magnifier hovering over ink text lines — the canonical
+"OCR / recognize & read" gesture, rendered as pure line art.
+
+**Style**: Transparent background, line-art only. No fills, no shadows, no
+animation. SVG and ICO are pixel-identical (same static frame).
+
+**Color Scheme** (pulled from the app's CSS variables in
+`src/renderer/src/index.css`):
+
+| Role        | Hex       | CSS var        |
+|-------------|-----------|----------------|
+| Ink text    | `#4a453e` | `--ink-2`      |
+| Vermilion   | `#c8442a` | `--vermilion`  |
+
+This replaces the previous amber-honey gradient icon (`#FF9A56 → #FFDD67`) so
+the app icon matches the current "paper & ink" UI theme.
 
 ## Files
 
-- `icon.svg` - Vector source file (scalable)
-- `icon.png` - To be generated from SVG (256×256)
-- `icon.ico` - To be converted from PNG (multi-size)
+- `icon.svg` — vector source, 256×256, transparent background
+- `icon-256.png` — 256×256 PNG rasterized from the SVG (intermediate, tracked in git)
+- `icon.ico` — multi-size ICO (256/128/64/48/32/16), gitignored
 
-## Generation Steps
+## Geometry (256×256 viewBox)
 
-### Option 1: Online Tool (Easiest)
+```
+4 ink text lines (stroke #4a453e, width 8, linecap round):
+  y=80   x 56..200
+  y=112  x 56..180
+  y=144  x 56..200
+  y=176  x 56..150
 
-1. Open `resources/icon.svg` in browser
-2. Take screenshot or export as PNG (256×256)
-3. Upload to https://convertio.co/png-ico/ or https://icoconvert.com/
-4. Download `icon.ico` with all sizes (16, 32, 48, 64, 128, 256)
-5. Save to `resources/icon.ico`
-
-### Option 2: Command Line (ImageMagick)
-
-```bash
-# Convert SVG to PNG
-convert resources/icon.svg -resize 256x256 resources/icon-256.png
-
-# Convert PNG to ICO with multiple sizes
-convert resources/icon-256.png -define icon:auto-resize=256,128,64,48,32,16 resources/icon.ico
+vermilion magnifier (stroke #c8442a):
+  ring   cx=138 cy=128 r=48, width 10
+  handle (172,162) -> (206,196), width 12, linecap round
 ```
 
-### Option 3: Inkscape
+## Regeneration
 
 ```bash
-# Export PNG from SVG
-inkscape resources/icon.svg --export-type=png --export-width=256 --export-filename=resources/icon-256.png
+# 1. SVG -> 256 PNG (headless Chrome, preserves transparent background)
+google-chrome --headless=new --no-sandbox --disable-gpu \
+  --force-device-scale-factor=1 --window-size=256,256 \
+  --default-background-color=00000000 \
+  --screenshot=resources/icon-256.png \
+  file:///path/to/resources/icon.svg
 
-# Then use online tool to convert to .ico
+# 2. 256 PNG -> multi-size ICO (Python + Pillow)
+python -c "
+import struct, io
+from PIL import Image
+im = Image.open('resources/icon-256.png').convert('RGBA')
+sizes = [256, 128, 64, 48, 32, 16]
+pngs = {}
+for s in sizes:
+    if s == 256:
+        pngs[s] = open('resources/icon-256.png','rb').read()
+    else:
+        b = io.BytesIO(); im.resize((s,s), Image.LANCZOS).save(b, 'PNG'); pngs[s] = b.getvalue()
+n = len(sizes)
+header = struct.pack('<HHH', 0, 1, n)
+entries = b''; offset = 6 + 16*n
+for s in sizes:
+    d = pngs[s]; w = h = (0 if s==256 else s)
+    entries += struct.pack('<BBBBHHII', w, h, 0, 0, 1, 32, len(d), offset); offset += len(d)
+open('resources/icon.ico','wb').write(header + entries + b''.join(pngs[s] for s in sizes))
+"
 ```
 
-## Current Status
+## Constraints (from `.claude/CLAUDE.md`)
 
-✅ SVG source file created  
-⏳ PNG export pending  
-⏳ ICO conversion pending  
-
-Once `icon.ico` is generated, the build configuration is complete and `npm run make` will use it automatically.
-
-## Design Features
-
-- **3D Perspective**: Document with depth using pseudo-3D shading
-- **Gradient Lines**: Text lines using amber-honey gradient
-- **Scanning Beam**: White horizontal line with opacity animation (static frame for ICO)
-- **Rounded Corners**: 50px radius for modern look
-- **Shadow**: Subtle drop shadow for depth
-
-## Notes
-
-- The SVG includes animation for preview only
-- The final .ico file will be a static image (key frame of the scanning beam)
-- All colors match the application's amber-honey UI theme
+- `resources/icon.ico` must contain a 256×256 entry or electron-builder aborts
+  with `Icon must be at least 256x256 pixels`. Current ICO includes 256/128/64/48/32/16.
+- `icon.ico` is gitignored; `icon-256.png` is tracked so the intermediate is recoverable.
+- WSL (`/home/arcdent/github/ocr-app/resources/`) and Windows
+  (`C:\Users\yanga\Projects\ocr-app\resources/`) must stay in sync — the WSL side is
+  the git source, the Windows side is where builds run.

@@ -17,7 +17,7 @@
 ![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
 ![Platform](https://img.shields.io/badge/Platform-Windows-blue?style=for-the-badge)
-![Version](https://img.shields.io/badge/Version-1.0.0-C8442A?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-1.0.1-C8442A?style=for-the-badge)
 
 OCR 文字识别 + LLM 结构化提取桌面应用
 
@@ -178,7 +178,7 @@ npm run make
 
 1. electron-vite 编译 TypeScript/React 源码到 `out/`（main/preload/renderer）
 2. electron-builder 打包成 Windows 单文件 portable exe
-3. 产物：`dist/OCR App-1.0.0-portable.exe`
+3. 产物：`dist/OCR App-1.0.1-portable.exe`
 4. 免安装目录：`dist/win-unpacked/ocr-app.exe`
 
 **首次构建**可能因 electron-builder 向 GitHub 请求 Electron 元数据而 `ECONNRESET`，直接重试 `npx electron-builder --win` 即可（非配置问题）。
@@ -192,7 +192,7 @@ npm run make
 
 ### 使用 portable exe
 
-双击 `dist/OCR App-1.0.0-portable.exe` 即可运行，无需安装。
+双击 `dist/OCR App-1.0.1-portable.exe` 即可运行，无需安装。
 
 > **注意**：严禁在 WSL2 UNC 路径（`\\wsl.localhost\...`）下执行 `npm install` / `npm run make`（会因 `.bin` 符号链接 `EISDIR` 崩溃）。请改在 Windows 原生路径 `C:\...` 或 WSL 原生路径 `/home/...` 执行。
 
@@ -201,8 +201,8 @@ npm run make
 打 tag 触发自动构建并发布到 Release：
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.0.1
+git push origin v1.0.1
 ```
 
 workflow 会在 `windows-latest`（Node 20）上依次执行 `npm ci`、typecheck、`electron-vite build`、`electron-builder --win portable`，把 `OCR App-<tag>-portable.exe` 上传到对应 Release。约 4 分钟出产物，见 https://github.com/ArcDent/ocr-app/releases 。

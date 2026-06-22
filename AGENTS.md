@@ -30,6 +30,16 @@ dist/                       # electron-builder 打包产物（gitignore）
 
 ## 最近操作
 
+- **2026-06-22**: 替换应用图标——旧琥珀渐变扫描文档 → 新「放大镜 + 文字行」纯线条图标（未打包，仅换资源）
+  - **动机**：旧 `resources/icon.svg` 用 `#FF9A56 → #FFDD67` 琥珀渐变 + 3D 透视文档 + 白色扫描光束动画，与 renderer 当前的「纸本墨韵 + 朱砂 + 青墨绿 + 衬线」CSS 主题（`index.css` 的 `--ink-2 #4a453e` / `--vermilion #c8442a`）割裂。用户要求透明背景、简洁线条、无动画。
+  - **brainstorming**：经 visual companion 浏览器 mockup 共 9 个方向（A–I），用户选 C（放大镜圈文字行）；又经 C1–C4 镜内表达变体 + U1/U2 双色加粗变体后，用户最终回到 C 原稿静态版。设计：4 条墨色文字行（`#4a453e` width 8）+ 1 把朱砂放大镜（`#c8442a` ring r=48 width 10 + handle width 12），256×256 透明背景，无填充无阴影无动画，SVG 与 ICO 像素一致。
+  - **生成链路**（绕开 ImageMagick/Inkscape，用 headless Chrome + Pillow）：①`google-chrome --headless=new --default-background-color=00000000 --window-size=256,256 --screenshot` 把 WSL 端 `icon.svg` 渲染成 `icon-256.png`（4740 字节，PIL 采样 6 点全 `a=0` 确认真透明）；②PIL `Image.resize((s,s), LANCZOS)` 生成 256/128/64/48/32/16 六个 PNG；③手写 PNG-in-ICO 封装（`struct.pack('<HHH'` header + `'<BBBBHHII'` per entry，Vista+ 支持），输出 `icon.ico` 13198 字节含 6 尺寸，PIL `IcoFile.sizes()` 验证通过——满足坑点 6 的 256×256 硬约束。chrome-devtools MCP 的 `evaluate_script` + `canvas.toDataURL` 路径也试过，PNG 透明度 OK 但 base64 经传输给 Python 时被损坏（PIL 报 `unrecognized data stream`），改走 headless chrome 文件输出更稳。
+  - **文件改动**：`resources/icon.svg`（859 字节，重写）、`resources/icon-256.png`（4740 字节，重新生成）、`resources/icon.ico`（13198 字节，重新生成，gitignore）、`resources/ICON_README.md`（重写为新方案 C 描述 + headless chrome/Pillow 重生命令）。
+  - **双端同步**：hdresearch-python MCP 从 WSL `/home/arcdent/github/ocr-app/resources/` 复制 4 文件到 `/mnt/c/Users/yanga/Projects/ocr-app/resources/`，SHA-256 逐文件校验全 identical（坑点 3）。
+  - **验证**：`npm run typecheck` 零错误；`npx vitest run` 275/275 通过（17 文件，3.97s）。未打包（用户未要求 bump 版本号，仅换资源；下次发版走 CI 路径 A 时会自动用新 icon.ico）。
+  - **把手截断修复（同日）**：首次打包后用户发现放大镜把手被截断。根因：headless chrome `--screenshot` 命令渲染 SVG 时裁切了内容（256 PNG bbox 只到 x=204/y=168，把手端点 (206,196)+round cap 应到 (212,202) 却缺失 ~19px）。修复：改用 chrome-devtools MCP 的 `canvas.toDataURL` 路径渲染（bbox 完整到 (212,202)），base64 分 5 块（每块 2000 字符）经 `evaluate_script` 取回后 Python 拼接解码（避免单次传输 9236 字符 base64 损坏——之前 PIL 报 `unrecognized data stream` 即此）。新 256 PNG 6925 字节（旧 4740），ICO 15968 字节含 6 尺寸，bbox 验证完整。**坑点追加：headless chrome `--screenshot` 不可靠，canvas.toDataURL 才是 SVG→PNG 的可靠路径；base64 超长需分块传输**。
+  - **重打包**：`npx electron-builder --win` 一次成功（无 ECONNRESET），产出 `dist/OCR App-1.0.1-portable.exe` 66.26 MB（22:16，覆盖 22:03 旧版）。版本号保持 1.0.1（同版本内修复，产物覆盖）。
+
 - **2026-06-22**: v1.0.0 发布——README 重写 + GitHub 仓库创建 + tag 触发自动打包 workflow
   - **README 重写**：仿 MaiCLI 风格（ASCII logo + 徽章 + 功能表格 + ASCII 界面截图 + FAQ + 贡献指南 + 许可证）。版本号 0.4.4 → 1.0.0。
   - **GitHub 仓库**：创建 `ArcDent/ocr-app`（public），推送 master 全历史。
@@ -80,8 +90,6 @@ dist/                       # electron-builder 打包产物（gitignore）
   - **改动文件**（6 个，纯样式层，零逻辑改动）：`index.css`（注入 :root CSS 变量 + 字体栈 + 滚动条 amber→vermilion）、`tailwind.config.js`（extend colors/fontFamily/borderRadius/boxShadow/keyframes）、`App.tsx`（删 `<span>文</span>` 换 inline SVG 朱砂方印 logo + header/按钮全调色）、`ConfigDialog.tsx`（三个 `<section>` 包进 `bg-paper-2 border-line rounded-lg shadow-card` 卡片容器——修复用户点名的「没圆角」+ 全组件调色）、`FileQueueList.tsx`、`ResultDetail.tsx`（调色 + font-display + font-mono JSON 区）。
   - **验证**：electron-vite build 成功，CSS 产物 22.83KB（坑点 2 标准 >210 字节），grep `--paper`×9 / `vermilion`×27 / `font-display`×6 命中，`amber`/`slate-200` 残留 0。272/272 测试全绿（17 文件）——修复了一处测试断言：`ResultDetail.test.tsx:34` 断言 `⚠️ 注意`，最初误删 emoji 已恢复。typecheck 零新增错误（7 条既存错误全在 main/preload 未触及文件）。
   - **双端同步**：PowerShell `Copy-Item` 把 6 个文件从 WSL `\\wsl.localhost\Ubuntu\home\arcdent\github\ocr-app` 同步到 Windows 原生路径 `C:\Users\yanga\Projects\ocr-app`（坑点 4 约束，npm/build 必须在原生路径跑）。
-  - **未打包**：本次仅样式重设计，未触版本号、未打包 portable exe（用户未表达提交意图，按收尾流程 README/打包步骤不触发）。
-
 ## 进行中
 
 无。v1.0.0 已发布（GitHub 仓库 ArcDent/ocr-app，tag v1.0.0，portable exe 已上传 Release）。收敛 + README 重写 + CI workflow 全部完成。
