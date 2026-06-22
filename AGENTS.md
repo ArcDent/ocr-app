@@ -30,6 +30,14 @@ dist/                       # electron-builder 打包产物（gitignore）
 
 ## 最近操作
 
+- **2026-06-22**: 修复 UI 三处样式 bug（圆角/滚动条/顶栏风格），已打包 0.4.1 portable exe
+  - **根因 1（滚动条未隐藏，3 处）**：`index.css` 设计意图是「静止时 thumb 透明、滚动时朱砂显示」，规则 `.scroll-overlay::-webkit-scrollbar-thumb { background: transparent }` + `.is-scrolling::-webkit-scrollbar-thumb { background: vermilion }`。`useScrollOverlay` hook 只在滚动瞬间加 `is-scrolling`，静止时移除，因此元素必须**静态拥有 `scroll-overlay` 基类**才能在静止时匹配规则1 隐藏。但三个滚动容器只挂了 ref 没加基类：`ConfigDialog.tsx` contentRef、`FileQueueList.tsx` scrollRef、`ResultDetail.tsx` scrollRef。修复：三处 div className 追加 `scroll-overlay`。
+  - **根因 2（ConfigDialog 没有圆角）**：dialog 卡片是 `rounded-xl`（24px），但直接子元素 Header（`bg-paper-2`）和 Footer（`bg-paper-2`）背景色贴边铺满、自身无圆角，且卡片无 `overflow-hidden`，子块方角盖过父级圆角。修复：dialog 卡片 className 追加 `overflow-hidden`，让 Header/Footer 被父级圆角裁剪。
+  - **根因 3（顶栏风格不统一）**：App.tsx 顶 header `py-4`/标题 `text-base font-semibold`，dialog header `py-5`/标题 `text-2xl font-bold`，参数不一致。修复（对齐+强化层级）：`py-4`→`py-5`、标题 `text-base font-semibold`→`text-lg font-bold`、logo 与文字间加 `w-1 h-8 bg-vermilion rounded-sm` 朱砂竖条标识（与 dialog section 标题的朱砂点呼应）。
+  - **验证**：typecheck renderer 零新增错误（7 条既存错误全在 main/preload 未触及文件）；272/272 测试全过；electron-vite build 成功，CSS 产物 22.89KB（含 `scroll-overlay` 规则）；`npx electron-builder --win` 生成 `dist/OCR App-0.4.1-portable.exe`（66.68 MB）。版本号 bump 0.4.0→0.4.1（patch，纯 bug 修复）。
+  - **双端同步**：Windows 端 Edit 工具改 + WSL git 源 filesystem MCP edit_file 重放同样 5 处修改，git status 确认 5 文件 modified。
+  - **已 git add**：5 文件 staged（package.json + 4 源码），未 commit（等用户决定）。
+
 - **2026-06-22**: 前端整体重设计「纸本墨韵 / Editorial Ink」——移除「文」字 logo、ConfigDialog 卡片化、摆脱 amber+slate AI slop
   - **设计**：`/brainstorming` + sequential-thinking MCP 推导设计令牌 → AskUserQuestion 三决策（审美方向/logo 方案/body 字体）→ plan 文件 `C:\Users\yanga\.claude\plans\mossy-sleeping-volcano.md`。
   - **方向**：暖纸白 `#FAF7F0` 底 + 深墨 `#1A1815` 文字 + 朱砂红 `#C8442A`（印章红）强调 + 青墨绿 `#2D5F4E` 成功态 + 衬线 display（Iowan/Songti SC 系统栈，离线可用）。圆角体系统一为 input 8 / button 12 / card 16 / dialog 24。
@@ -68,14 +76,14 @@ dist/                       # electron-builder 打包产物（gitignore）
 
 ## 进行中
 
-无。前端「纸本墨韵」重设计已完成样式层与验证，未提交 git、未打包。
+无。UI 三处样式 bug 修复已完成，5 文件已 git add 待 commit。
 
 ## 下一步
 
 **立即**：
-1. 视觉冒烟：在 Windows 原生路径跑 `npm run dev`，肉眼确认——logo 是朱砂方印 SVG 无「文」字、全局纸白底+深墨文字+朱砂强调、ConfigDialog 三个 section 是有圆角卡片、圆角层级统一（input 8/button 12/card 16/dialog 24）、标题衬线+JSON mono、滚动条朱砂红。
-2. 若视觉通过，按收尾流程：bump `package.json` version（patch 或 minor）→ 同步双端 → `npm run make` 打 portable exe。
-3. master 有本次前端重设计改动待评估是否提交/推送。
+1. commit 当前 staged 的 5 个文件（建议 message: `fix: hide scrollbars, restore dialog rounded corners, align header style`）。
+2. 视觉冒烟：跑 `OCR App-0.4.1-portable.exe`，肉眼确认——ConfigDialog 四角圆角正常、三个滚动区静止时滚动条隐藏滚动时朱砂显示、顶栏与 dialog header padding/字号对齐且有朱砂竖条标识。
+3. 若视觉通过，推送 master。
 
 **后续**：
 - 真实 API 联调：用真实 OCR 文本（发票/聊天记录/报告）验证四类格式判定与输出效果。
@@ -97,3 +105,5 @@ dist/                       # electron-builder 打包产物（gitignore）
 11. **叠加式滚动条用 background-color 过渡**: `::-webkit-scrollbar-thumb` 的 `transition: opacity` 在部分 Chromium 版本对伪元素不稳定，改用 `transition: background-color`——非滚动时 thumb 背景透明，`.is-scrolling` 时变琥珀色，停止 800ms 后回透明，视觉等同淡入淡出。Firefox 用 `scrollbar-color` 始终可见（退化可接受）。注：2026-06-22 前端重设计后滚动条色已从琥珀 `rgba(245,158,11,*)` 改为朱砂 `rgba(200,68,42,*)`。
 12. **前端设计令牌体系（2026-06-22 重设计）**: 前端从 amber+slate 的 AI slop 迁移到「纸本墨韵」体系，令牌集中在 `index.css` `:root` CSS 变量 + `tailwind.config.js` extend 双层定义：颜色 `paper/paper-2/ink/ink-2/ink-3/line/vermilion/vermilion-2/vermilion-soft/seal/seal-soft/red-soft`；字体 `--font-display`（衬线 Iowan/Palatino/Songti SC 系统栈，离线可用无 Google Fonts 依赖）/`--font-body`（保留无衬线）/`--font-mono`（JSON 区）；圆角重定义 `sm8/md12/lg16/xl24`（input/button/card/dialog 四级体系）；阴影 `shadow-card`/`shadow-float`（纸感轻柔替代 shadow-2xl）。改样式只动这层令牌 + 组件 className，零逻辑改动。验证方式：`npm run build` 后 `out/renderer/assets/*.css` grep `vermilion`/`--paper`/`font-display` 有命中、`amber`/`slate-200` 残留为 0。
 13. **ConfigDialog「卡片没圆角」根因**: 三个 `<section>`（TextIn OCR/LLM/处理参数）原本没有卡片容器，只是裸 `<h3>` + 散落输入框堆在 `space-y-8` 里，所以视觉上「没圆角」。修复方式：每个 section 包进 `bg-paper-2 border border-line rounded-lg p-5 shadow-card`。这是卡片容器的来源，不是 dialog 本身（dialog 一直是 `rounded-3xl`）。
+14. **叠加式滚动条必须静态挂 `scroll-overlay` 基类（2026-06-22 修复）**: `index.css` 的规则是 `.scroll-overlay` 和 `.is-scrolling` 两类共享 `::-webkit-scrollbar-thumb { background: transparent }`，只有 `.is-scrolling` 覆盖为朱砂色。`useScrollOverlay` hook 只在滚动瞬间加 `is-scrolling`、静止 800ms 后移除，所以元素若不静态拥有 `scroll-overlay` 基类，静止时不匹配任何规则 → 浏览器默认丑滚动条常驻。修复：所有用 `useScrollOverlay` 的滚动容器 className 必须追加 `scroll-overlay` 基类。后续新增滚动容器时，`ref` + `scroll-overlay` 基类 + `useScrollOverlay(ref)` 三件套缺一不可。
+15. **dialog 子元素方角遮挡父级圆角（2026-06-22 修复）**: `rounded-xl` 的卡片若直接子元素（Header/Footer）背景色贴边铺满且无 `overflow-hidden`，子块方角会盖过父级圆角，视觉上整个弹窗呈现方角。修复：dialog 卡片加 `overflow-hidden` 让子块被父级圆角裁剪。后续 dialog/卡片容器若 header/footer 贴边铺满，父级必须 `overflow-hidden`。

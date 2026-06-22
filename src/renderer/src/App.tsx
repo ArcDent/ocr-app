@@ -80,7 +80,7 @@ export default function App() {
   return (
     <div className="h-screen flex flex-col bg-paper text-ink overflow-hidden" onDragOver={handleDragOver} onDrop={handleDrop}>
       {/* Header */}
-      <header className="bg-paper-2 border-b border-line px-6 py-4 flex items-center justify-between shrink-0 z-10">
+      <header className="bg-paper-2 border-b border-line px-6 py-5 flex items-center justify-between shrink-0 z-10">
         <div className="flex items-center gap-3">
           {/* Vermilion seal logo — custom SVG, replaces the ugly "文" placeholder */}
           <svg
@@ -99,9 +99,10 @@ export default function App() {
             <rect x="9" y="14.5" width="14" height="2.2" rx="1" fill="var(--paper)" />
             <path d="M16 17.5 L22 24 L10 24 Z" fill="var(--paper)" />
           </svg>
+          <div className="w-1 h-8 bg-vermilion rounded-sm"></div>
           <div>
-            <p className="font-display text-base font-semibold text-ink leading-tight">OCR 结构化工坊</p>
-            <p className="text-xs text-ink-3 leading-tight mt-0.5">OCR + AI 结构化处理</p>
+            <p className="font-display text-lg font-bold text-ink leading-tight">OCR 结构化工坊</p>
+            <p className="text-xs text-ink-3 leading-tight mt-1">OCR + AI 结构化处理</p>
           </div>
         </div>
         <button

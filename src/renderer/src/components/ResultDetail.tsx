@@ -100,7 +100,7 @@ export function ResultDetail({ result }: ResultDetailProps) {
               <Copy className="w-4 h-4" />
             </button>
           </div>
-          <div ref={scrollRef} className="flex-1 p-6 overflow-y-auto font-mono text-sm whitespace-pre-wrap leading-relaxed text-ink">
+          <div ref={scrollRef} className="flex-1 p-6 overflow-y-auto font-mono text-sm whitespace-pre-wrap leading-relaxed text-ink scroll-overlay">
             {content || <span className="text-ink-3 italic">无内容</span>}
           </div>
         </div>

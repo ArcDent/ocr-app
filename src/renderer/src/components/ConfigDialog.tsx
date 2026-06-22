@@ -51,7 +51,7 @@ export function ConfigDialog({ isOpen, onClose }: ConfigDialogProps) {
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-overlay-fade-in">
-      <div className="bg-paper rounded-xl shadow-float border border-line w-full max-w-2xl max-h-[90vh] flex flex-col animate-zoom-in">
+      <div className="bg-paper rounded-xl shadow-float border border-line w-full max-w-2xl max-h-[90vh] flex flex-col animate-zoom-in overflow-hidden">
         {/* Header */}
         <div className="px-6 py-5 border-b border-line flex justify-between items-center bg-paper-2">
           <h2 className="font-display text-2xl font-bold text-ink">系统配置</h2>
@@ -64,7 +64,7 @@ export function ConfigDialog({ isOpen, onClose }: ConfigDialogProps) {
         </div>
 
         {/* Content */}
-        <div ref={contentRef} className="flex-1 overflow-y-auto p-6 space-y-8">
+        <div ref={contentRef} className="flex-1 overflow-y-auto p-6 space-y-8 scroll-overlay">
           {/* TextIn OCR Config */}
           <section className="bg-paper-2 border border-line rounded-lg p-5 shadow-card">
             <h3 className="font-display text-lg font-bold text-ink mb-4 flex items-center gap-2.5">

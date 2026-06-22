@@ -81,7 +81,7 @@ export function FileQueueList({ jobs, pendingFiles, selectedJobId, onSelectJob, 
         )}
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto scroll-overlay">
         <ul className="divide-y divide-line">
           {pendingFiles.map((file, idx) => (
             <li
