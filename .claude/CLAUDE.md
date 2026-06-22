@@ -115,7 +115,57 @@
 
 **顺序铁律**：版本号未更新就打包 → 旧版本 portable exe 被覆盖、无法回溯。
 
+---
+
+## 发版流程（强约束，不可跳过）
+
+项目已有两条发版路径：**CI 自动发版**（推荐，发 tag 触发）与**本地手动打包**（离线/调试用）。
+二者择一，不可混用。发布新版本时按以下流程执行。
+
+### 路径 A：CI 自动发版（推荐）
+
+适用场景：代码已 commit 并推送到 master，需发布正式 Release。
+
+**执行顺序**（顺序不可调换）：
+
+1. **确认 master 干净** — 本地无未提交改动，`git status` 干净，本地与 `origin/master` 同步。
+2. **更新版本号** — 在 `package.json` 递增 `version`（semver：patch/minor/major），commit。
+3. **同步双端配置** — 按坑点 3 把 `package.json` 同步到 Windows 端（保持构建副本一致）。
+4. **验证 CI 可过的前置** — 在 Windows 原生路径跑 `npm run typecheck` + `npx vitest run`，
+   确认零 typecheck 错误、测试全绿。CI 会跑 typecheck，本地不过 CI 必失败。
+5. **推送版本 commit** — `git push origin master`。
+6. **打 tag 并推送** — `git tag vX.Y.Z && git push origin vX.Y.Z`（tag 名必须与 package.json version 一致，带 `v` 前缀）。
+7. **等待 workflow** — `.github/workflows/build-portable.yml` 在 `windows-latest` 上自动：
+   `npm ci` → typecheck → `electron-vite build` → `electron-builder --win portable` → 上传 portable exe 到 GitHub Release。
+   用 `gh run watch <run-id> --repo ArcDent/ocr-app` 监控，约 4 分钟。
+8. **确认 Release** — `gh release view vX.Y.Z --repo ArcDent/ocr-app`，确认 portable exe 已作为 asset 上传。
+
+**CI 已知硬约束**：
+- workflow 必须 `node-version: 20`（坑点见 AGENTS.md 关键发现 19：electron-builder 26 的 app-builder-lib require 纯 ESM 的 @noble/hashes，Node 18 报 ERR_REQUIRE_ESM）。
+- `package-lock.json` 必须与 `package.json` 同步（删/加依赖后须 `npm install` 重生成 lock 并 commit），否则 `npm ci` 报 `out of sync`。
+- typecheck 零错误才通过（CI 不容忍既有错误）。删 `@types/*` 前先 grep 测试是否用到其提供的全局类型（关键发现 20：@types/jest 非 死依赖）。
+
+### 路径 B：本地手动打包（离线/调试）
+
+适用场景：未联网、或需本地快速验证产物、不发 Release。
+
+直接走上方「收尾流程约束」四步：更新版本号 → 同步双端 → `npm run make` → 验证产物。
+产物在 `dist/OCR App-<version>-portable.exe`，不触发 CI、不上传 Release。
+
+### 版本号判定
+
+- **patch**（0.4.4 → 0.4.5）：纯 bug 修复、文案/样式微调
+- **minor**（0.4.4 → 0.5.0）：新增功能、向后兼容
+- **major**（0.4.x → 1.0.0）：破坏性变更、里程碑
+
+### 发版后
+
+- 更新 `AGENTS.md`「最近操作」记录本次发版（版本号、Release URL、改动摘要）。
+- 若发版过程发现新的 CI/构建坑点，追加到 `AGENTS.md`「关键发现」并同步本文件「已知坑点」。
+
 ## 参考
 
-- 构建产物路径：`dist/OCR App-0.1.0-portable.exe`（单文件 portable）、`dist/win-unpacked/ocr-app.exe`（免安装目录）
+- CI workflow：`.github/workflows/build-portable.yml`（tag `v*` 触发，windows-latest，Node 20）
+- GitHub 仓库：`ArcDent/ocr-app`，Release 页：https://github.com/ArcDent/ocr-app/releases
+- 构建产物路径：`dist/OCR App-<version>-portable.exe`（单文件 portable）、`dist/win-unpacked/ocr-app.exe`（免安装目录）
 - 完整技术决策记录见 `AGENTS.md`「关键发现」章节
