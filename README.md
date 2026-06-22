@@ -2,11 +2,10 @@
 
 <p align="center">
   <pre>
-  ___  ____  ____   ___  ____ _____ ____
- / _ \|  _ \|  _ \ / _ \/ ___|_   _|  _ \
-| | | | |_) | |_) | | | \___ \ | | | |_) |
-| |_| |  _ <|  _ <| |_| |___) || | |  __/
- \___/|_| \_\_| \_\\___/|____/ |_| |_|
+ _    _    __  __ __      ___   ___ ___
+| |  | |  |  \/  / _|___ / _ \ / __| _ \
+| |__| |__| |\/| > _|_ _| (_) | (__|   /
+|____|____|_|  |_\_____| \___/ \___|_|_\
           OCR + LLM 结构化工坊
   </pre>
 </p>
@@ -20,24 +19,24 @@
 ![Platform](https://img.shields.io/badge/Platform-Windows-blue?style=for-the-badge)
 ![Version](https://img.shields.io/badge/Version-1.0.0-C8442A?style=for-the-badge)
 
-**✨ OCR 文字识别 + LLM 结构化提取桌面应用 ✨**
+OCR 文字识别 + LLM 结构化提取桌面应用
 
 把图片/PDF 变成结构化纯文本，纸本墨韵，一键导出
 
-[功能介绍](#-功能特点) • [快速开始](#-快速开始) • [界面展示](#-界面展示) • [构建打包](#-构建打包) • [常见问题](#-常见问题) • [贡献指南](#-贡献指南)
+[功能介绍](#功能特点) • [快速开始](#快速开始) • [界面展示](#界面展示) • [构建打包](#构建打包) • [常见问题](#常见问题) • [贡献指南](#贡献指南)
 
 </div>
 
 ---
 
-## 🎯 项目简介
+## 项目简介
 
-OCR App 是一款基于 Electron 的桌面应用，把 **TextIn OCR** 与 **OpenAI 兼容 LLM** 串成一条最小闭环：选文件 → 文字识别 → 结构化排版 → 摘要 → 导出 Markdown。
+OCR App 是一款基于 Electron 的桌面应用，把 **TextIn OCR** 与 **OpenAI 兼容 LLM** 串成一条最小闭环：选文件，然后文字识别、结构化排版、摘要，最后导出 Markdown。
 
-> 💡 **TextIn** 提供高质量多页 OCR（图片/PDF）
-> 💡 **LLM** 按 dialogue / kv / list / prose / mixed 五类格式重组为纯文本，禁 Markdown、禁占位符
+- **TextIn** 提供高质量多页 OCR（图片/PDF）
+- **LLM** 按 dialogue / kv / list / prose / mixed 五类格式重组为纯文本，禁 Markdown、禁占位符
 
-### 为什么选 OCR App？
+### 为什么选 OCR App
 
 - **最小闭环**：从选文件到导出 Markdown 一条龙，不堆砌伪扩展点
 - **纸本墨韵**：暖纸白 + 深墨 + 朱砂红主题，frameless 自定义标题栏
@@ -47,9 +46,9 @@ OCR App 是一款基于 Electron 的桌面应用，把 **TextIn OCR** 与 **Open
 
 ---
 
-## ✨ 功能特点
+## 功能特点
 
-### 🚀 核心功能
+### 核心功能
 
 | 功能 | 描述 |
 |:---|:---|
@@ -61,7 +60,7 @@ OCR App 是一款基于 Electron 的桌面应用，把 **TextIn OCR** 与 **Open
 | **历史持久化** | 结果落盘到 userData，最近 100 条可回看 |
 | **批量导出** | 一键导出全部结果为 Markdown + index.md 索引 |
 
-### 🎨 界面特性
+### 界面特性
 
 | 特性 | 描述 |
 |:---|:---|
@@ -71,7 +70,7 @@ OCR App 是一款基于 Electron 的桌面应用，把 **TextIn OCR** 与 **Open
 | **Toast 反馈** | sonner 分色提示（成功/警告/失败） |
 | **状态灯** | 队列清晰显示 queued/ocr/structuring/summarizing/done/error |
 
-### 🔧 技术特性
+### 技术特性
 
 | 特性 | 描述 |
 |:---|:---|
@@ -83,12 +82,12 @@ OCR App 是一款基于 Electron 的桌面应用，把 **TextIn OCR** 与 **Open
 
 ---
 
-## 📦 快速开始
+## 快速开始
 
 ### 环境要求
 
 - **操作系统**: Windows 10/11 x64
-- **Node.js**: ≥ 18（Electron 28 要求）
+- **Node.js**: ≥ 18（Electron 28 要求；CI 打包需 ≥ 20）
 - **磁盘**: 约 500MB（含 Electron 缓存）
 
 ### 开发模式
@@ -112,7 +111,7 @@ npm run build         # electron-vite 构建到 out/（不打包）
 
 ---
 
-## 🖼️ 界面展示
+## 界面展示
 
 ### 主界面
 
@@ -167,7 +166,7 @@ npm run build         # electron-vite 构建到 out/（不打包）
 
 ---
 
-## 🔧 构建打包
+## 构建打包
 
 ### Windows 便携版 exe
 
@@ -186,7 +185,7 @@ npm run make
 
 ### 构建环境要求
 
-- Node.js 18+
+- Node.js 18+（本地开发）；20+（CI 打包，见下）
 - Windows 10/11 x64，或可访问 Windows 文件系统的 WSL2
 - `resources/icon.ico` 须含 256x256 及以上尺寸条目
 - 约 500MB 可用磁盘空间
@@ -195,7 +194,7 @@ npm run make
 
 双击 `dist/OCR App-1.0.0-portable.exe` 即可运行，无需安装。
 
-> **⚠️ 注意**：严禁在 WSL2 UNC 路径（`\\wsl.localhost\...`）下执行 `npm install` / `npm run make`（会因 `.bin` 符号链接 `EISDIR` 崩溃）。请改在 Windows 原生路径 `C:\...` 或 WSL 原生路径 `/home/...` 执行。
+> **注意**：严禁在 WSL2 UNC 路径（`\\wsl.localhost\...`）下执行 `npm install` / `npm run make`（会因 `.bin` 符号链接 `EISDIR` 崩溃）。请改在 Windows 原生路径 `C:\...` 或 WSL 原生路径 `/home/...` 执行。
 
 ### 自动化构建（GitHub Actions）
 
@@ -206,11 +205,11 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-workflow 会在 `windows-latest` 上 `npm ci` → `npm run build` → `electron-builder --win portable`，把 `OCR App-<tag>-portable.exe` 上传到对应 Release。
+workflow 会在 `windows-latest`（Node 20）上依次执行 `npm ci`、typecheck、`electron-vite build`、`electron-builder --win portable`，把 `OCR App-<tag>-portable.exe` 上传到对应 Release。约 4 分钟出产物，见 https://github.com/ArcDent/ocr-app/releases 。
 
 ---
 
-## 📁 项目结构
+## 项目结构
 
 ```
 src/
@@ -234,7 +233,7 @@ postcss.config.js     # PostCSS（tailwindcss + autoprefixer）
 
 ---
 
-## 🛠️ 技术栈
+## 技术栈
 
 | 技术 | 版本 | 用途 |
 |:---|:-----|:-----|
@@ -251,35 +250,31 @@ postcss.config.js     # PostCSS（tailwindcss + autoprefixer）
 
 ---
 
-## ❓ 常见问题
+## 常见问题
 
-### Q: 测试连接永远失败？
+### Q: 测试连接失败怎么排查？
 
-**A:** 设置对话框的「测试连接」会先静默保存当前表单值再测试，测的是表单当前值而非旧配置。若仍失败，检查 App ID / Secret Code / API Key 是否正确。
-
-### Q: 选文件夹后崩溃（EISDIR）？
-
-**A:** 已修复。主进程会把目录递归展开为受支持扩展名（jpg/jpeg/png/pdf）文件列表。单个无权限子目录返回空不中断整个批次。
-
-### Q: 弹窗的 x 点了没反应？
-
-**A:** 已修复。Electron drag region 会拦截覆盖在 header 上的点击，ConfigDialog 的 overlay 已显式设 `WebkitAppRegion: 'no-drag'`。
-
-### Q: 导出提示不准？
-
-**A:** 导出返回 `{success, exportedCount, failedCount, error}`，只有 `exportedCount>0 && failedCount===0` 才报成功，部分失败用 warning toast。
+**A:** 设置对话框的「测试连接」会先静默保存当前表单值再测试，测的是表单当前值而非旧配置。若仍失败，依次检查 TextIn 的 App ID / Secret Code、LLM 的 API Key / Base URL / 模型名是否正确，以及网络能否访问对应 API。
 
 ### Q: 构建报 `Icon must be at least 256x256 pixels`？
 
-**A:** `resources/icon.ico` 必须含 256x256 及以上尺寸条目。当前为多尺寸（256/128/64/48/32/16）。
+**A:** `resources/icon.ico` 必须含 256x256 及以上尺寸条目。当前为多尺寸（256/128/64/48/32/16）。若替换图标，用支持多尺寸的 ICO 生成工具确保含 256x256。
 
-### Q: GitHub 访问困难导致构建卡住？
+### Q: GitHub 访问困难导致构建卡住或首次 `ECONNRESET`？
 
-**A:** `npm run make` 首次可能 `ECONNRESET`，是 electron-builder 请求 Electron 元数据时的网络抖动，Electron zip 缓存在 `C:\Users\<u>\AppData\Local\electron\Cache`，直接重试即可。
+**A:** `npm run make` 首次可能 `ECONNRESET`，是 electron-builder 请求 Electron 元数据时的网络抖动，Electron zip 缓存在 `C:\Users\<u>\AppData\Local\electron\Cache`，直接重试即可，非配置问题。
+
+### Q: CI workflow 构建失败 `ERR_REQUIRE_ESM`？
+
+**A:** electron-builder 26 的 app-builder-lib 依赖纯 ESM 包 `@noble/hashes`，Node 18 不支持 `require(ESM)`。`.github/workflows/build-portable.yml` 已固定 `node-version: 20`。本地跑 `npm run make` 若也遇到，升级 Node 到 20+。
+
+### Q: CI `npm ci` 报 lock 文件 `out of sync`？
+
+**A:** 删改 `package.json` 依赖后必须重新生成 `package-lock.json`（在原生路径 `npm install`）并 commit，否则 `npm ci` 严格校验失败。
 
 ---
 
-## 🤝 贡献指南
+## 贡献指南
 
 ### 开发环境搭建
 
@@ -295,11 +290,11 @@ npm run typecheck          # 类型检查
 
 ### 代码规范
 
-- TypeScript 严格类型，提交前 `npm run typecheck` 零新增错误
+- TypeScript 严格类型，提交前 `npm run typecheck` 零错误
 - 修改后跑 `npx vitest run`，测试全绿
 - 修改 Tailwind/PostCSS 后 `npm run build` 检查 CSS 产物（应 ~30KB）
-- 主进程禁用纯 ESM 依赖（坑：uuid v14 与 CJS 不兼容，用 `crypto.randomUUID()`）
-- 不自动 commit，达到逻辑节点提示确认
+- 主进程禁用纯 ESM 依赖（uuid v14 与 CJS 不兼容，用 `crypto.randomUUID()`）
+- CI 跑 typecheck 且不容忍既有错误，提交前务必本地验证通过
 
 ### 提交规范
 
@@ -314,13 +309,13 @@ chore: 构建/工具相关
 
 ---
 
-## 📄 许可证
+## 许可证
 
 本项目采用 [MIT](LICENSE) 许可证开源。
 
 ---
 
-## 🙏 致谢
+## 致谢
 
 - [TextIn](https://www.textin.com/) — 多页 OCR API
 - [Electron](https://www.electronjs.org/) — 跨平台桌面框架
@@ -331,9 +326,9 @@ chore: 构建/工具相关
 
 <div align="center">
 
-**Made with ❤️ by [ArcDent](https://github.com/ArcDent)**
+Made by [ArcDent](https://github.com/ArcDent)
 
-**Star ⭐ 如果这个项目对你有帮助！**
+Star 如果这个项目对你有帮助
 
 </div>
 
