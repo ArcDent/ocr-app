@@ -30,6 +30,16 @@ dist/                       # electron-builder 打包产物（gitignore）
 
 ## 最近操作
 
+- **2026-06-23**: 修复 CI 双 asset 上传 + 清理历史 commit 的 Claude Co-Authored-By trailer
+  - **根因（双 asset）**：v1.0.1 Release 出现两个 asset——`OCR-App-1.0.1-portable.exe`（连字符，69464043 字节）+ `OCR.App-1.0.1-portable.exe`（点号，69464043 字节），同文件被上传两次。CI 日志定位：①**electron-builder v26 隐式发布**——检测到 git tag 且 `GH_TOKEN` 环境变量已设，自动触发 GitHub publisher，把 productName 空格替换成连字符（`OCR App`→`OCR-App`）命名 asset；②**softprops/action-gh-release**——workflow「Attach to Release」步骤用 `dist/*-portable.exe` glob 匹配磁盘产物 `OCR App-1.0.1-portable.exe`（空格保留）再上传一次，GitHub Release asset 名里空格被规范化成 `.`。两 asset 同大、相差 9 秒创建——同一文件双通道各传一次。electron-builder warning 直接点明：`Implicit publishing triggered by git tag. This behavior will be disabled in electron-builder v27. Please use --publish explicitly.`
+  - **修复**：`.github/workflows/build-portable.yml`「Package portable exe」步骤 `npx electron-builder --win portable` → `--win portable --publish never`，并删除该步 `GH_TOKEN` env。保留 softprops action 作唯一上传通道（它还负责 `generate_release_notes: true`）。commit `ea6609e` `fix: disable electron-builder implicit publishing to avoid duplicate release assets`。
+  - **清理历史 trailer**：11 条 commit（`88a310d`..`d07badc`，最早是"Editorial Ink"重设计）message 含 `Co-Authored-By: Claude Sonnet 4.6 (1M context) <noreply@anthropic.com>` 或 `Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>` 两种变体。`git filter-branch --msg-filter 'sed "/^Co-Authored-By: Claude/d"' 88a310d^..HEAD` 批量删 trailer，14 条 commit 全部重写。
+  - **tag 移位**：所有 commit 哈希变化，两个已发布 tag 需强制移动——`v1.0.0` 旧 `29511c4`→新 `6e0855e`（ci: bump workflow node to 20）；`v1.0.1` 旧 `cc0f558`→新 `ea6609e`（含本次 workflow 修复，使 v1.0.1 重建用上修复后 workflow）。
+  - **force push**：`git push --force origin master` + `git push --force origin v1.0.0 v1.0.1`（用户显式要求+二次确认，CLAUDE.md 安全约束的危险操作例外）。tag force update 触发了两个旧 CI run（已取消），v1.0.1 移到 `ea6609e` 后重新触发 run `28011309791`，2m50s 全绿，产单 asset。
+  - **Release 收尾**：删旧残留 asset `OCR-App-1.0.1-portable.exe`（id 454705928，15:22:14 旧构建残留），保留新构建 `OCR.App-1.0.1-portable.exe`（69464042 字节）。asset 名带点号是 GitHub 空格规范化的结果，不影响下载使用。
+  - **本地备份**：filter-branch 的 `refs/original/refs/heads/master` 已删（`git update-ref -d`），旧历史可通过 reflog 恢复（30 天过期）。
+  - **遗留**：v1.0.0 tag 仍指向 `6e0855e`（旧 workflow，若重建会产双 asset，但历史版本不强求）。CI annotation `Node.js 20 is deprecated` 仍未处理。
+
 - **2026-06-22**: v1.0.1 发布（CI 路径 A）——图标替换 + 版本号 bump 触发 tag 自动打包
   - **触发**：用户说「提交当前改动 打新 tag 推送」。改动 = 图标替换（icon.svg/ICON_README/icon-256.png/icon.ico）+ package.json 1.0.0→1.0.1 + AGENTS.md 补记录。`.clinerules-*`（5 个 Cline IDE 配置）和 `resources/icon-128.png`/`icon-64.png`（ICO 生成中间尺寸）保留未追踪，不入提交。
   - **前置验证（路径 A 步骤 4）**：①WSL 原生路径 `npm install` 重生成 `package-lock.json`（lock 此前停在 1.0.0，与 package.json 1.0.1 不同步，CI `npm ci` 必报 out of sync——坑点已记录）；②`npm run typecheck` 零错误；③vitest 在 Windows 原生路径 `C:\Users\yanga\Projects\ocr-app` 跑，275/275 通过（17 文件，3.61s）——**WSL UNC 路径经 `wsl` 调用跑 vitest 会触发 vite-node 正则炸 `/(?:^|/@fs/)\(:[\/])/`，因 cwd 被暴露成 `file://wsl.localhost/...`，必须在 WSL 原生终端或 Windows 原生路径跑**；④lock 同步到 Windows 原生路径副本。
@@ -100,21 +110,18 @@ dist/                       # electron-builder 打包产物（gitignore）
   - **双端同步**：PowerShell `Copy-Item` 把 6 个文件从 WSL `\\wsl.localhost\Ubuntu\home\arcdent\github\ocr-app` 同步到 Windows 原生路径 `C:\Users\yanga\Projects\ocr-app`（坑点 4 约束，npm/build 必须在原生路径跑）。
 ## 进行中
 
-无。v1.0.1 已发布（GitHub 仓库 ArcDent/ocr-app，tag v1.0.1，CI 3m9s 全绿，portable exe 已上传 Release https://github.com/ArcDent/ocr-app/releases/tag/v1.0.1）。「纸本墨韵」重设计 + 图标替换全部完成。
+无。v1.0.1 已发布且双 asset 问题已修复（GitHub 仓库 ArcDent/ocr-app，tag v1.0.1 指向 `ea6609e` 含 workflow 修复，CI 2m50s 全绿，Release 仅单 asset `OCR.App-1.0.1-portable.exe`）。「纸本墨韵」重设计 + 图标替换 + CI 双上传修复 + 历史 trailer 清理全部完成。
 
 ## 下一步
 
 **立即**：
-1. 视觉冒烟：下载 Release 的 `OCR-App-1.0.1-portable.exe` 跑一遍，确认新图标在任务栏/标题栏/安装器渲染正常（尤其 16x16 小尺寸下放大镜把手是否清晰）。
+1. 视觉冒烟：下载 Release 的 `OCR.App-1.0.1-portable.exe` 跑一遍，确认新图标在任务栏/标题栏/安装器渲染正常（尤其 16x16 小尺寸下放大镜把手是否清晰）。
 2. 真实 API 联调：用真实 OCR 文本（发票/聊天记录/报告）验证四类格式判定与输出效果。
 
 **后续**：
 - 若发现 LLM 高频误判类型，在 `prompts.ts` 的 TYPE_RULES 里强化判定准则。
-- 后续发版：改完代码后 `git tag vX.Y.Z && git push origin vX.Y.Z`，workflow 自动构建并发布 Release。
-
-**后续**：
-- 真实 API 联调：用真实 OCR 文本（发票/聊天记录/报告）验证四类格式判定与输出效果。
-- 若发现 LLM 高频误判类型，在 `prompts.ts` 的 TYPE_RULES 里强化判定准则。
+- 后续发版：改完代码后 `git tag vX.Y.Z && git push origin vX.Y.Z`，workflow 自动构建并发布 Release（修复后产单 asset）。
+- 待观察：CI annotation `Node.js 20 is deprecated`（actions/checkout@v4 等被强制跑 Node 24），未来可能需升 actions 版本或 node-version。
 
 ## 关键发现
 
@@ -139,3 +146,5 @@ dist/                       # electron-builder 打包产物（gitignore）
 18. **overlay 覆盖 drag region 必须显式设 no-drag（2026-06-22 修复 x 关不掉）**: Electron 的 `-webkit-app-region: drag` 命中是基于屏幕像素位置的——当一个 `fixed inset-0` 的 overlay（如 ConfigDialog 遮罩）覆盖在设置了 drag 的 header 之上时，**overlay 本身若未显式设 `WebkitAppRegion: 'no-drag'`，其覆盖 drag region 的屏幕区域内的点击会被 Electron 拦截做窗口拖拽，React onClick 收不到事件**。表现为：弹窗里只有落在 App header drag region 屏幕坐标范围内的按钮（如 ConfigDialog header 行的 x）点不动，落在 drag region 之外的按钮（如底部"取消""保存"）正常。根因修复：给 overlay 容器（`fixed inset-0` 那层）加 `style={{ WebkitAppRegion: 'no-drag' }}`，整个 overlay 及其子元素都不再被 drag 命中。**禁止用"移除 x 按钮"做症状修复**——那样根因仍在，弹窗位置或内容一变就会复发。后续新增任何覆盖 header 的 fixed overlay（modal/dropdown/popover）都必须显式设 `no-drag`。
 19. **CI 构建必须用 Node 20+（2026-06-22 修复 ERR_REQUIRE_ESM）**: electron-builder 26 的 app-builder-lib 依赖 `@noble/hashes@2.x`（纯 ESM 包），打包 blockmap 时用 `require()` 加载它。Node 18 不支持 `require(ESM)`，报 `ERR_REQUIRE_ESM`。GitHub Actions workflow 必须用 `node-version: 20`（或更高）。本地构建同理。后续若升级 electron-builder 版本，确认其依赖链无纯 ESM 包冲突，或 Node 版本足够。
 20. **@types/jest 非死依赖（2026-06-22 误删后恢复）**: 测试文件用 `describe`/`it`/`expect`/`vi` 全局函数。vitest 本身不提供这些全局的 TypeScript 类型（运行时靠 vitest/globals，但 typecheck 时需类型声明）。`@types/jest` 提供 describe/it/expect 的类型，是 typecheck 通过的依赖。**禁止再次误删**——删后本地因 node_modules 残留不报错，但 CI 全新 `npm ci` 会暴露 `Cannot find name 'describe'`。验证方式：删任何 `@types/*` 前先 grep 测试文件是否用到其提供的全局类型。
+21. **electron-builder 隐式发布导致 Release 双 asset（2026-06-23 修复）**: electron-builder v26 在 `GH_TOKEN` 环境变量已设 + git tag 触发构建时，会**自动触发 GitHub publisher 隐式发布**——把 portable exe 直接上传到 Release，asset 名 productName 空格替换成连字符（`OCR App`→`OCR-App-*.exe`）。若 workflow 同时用 `softprops/action-gh-release` 上传（glob `dist/*-portable.exe` 匹配磁盘产物 `OCR App-*.exe`，GitHub Release 把空格规范化成 `.`），就会产生两个 asset——同一文件被双通道各传一次，名字一含连字符一含点号。electron-builder warning 明确提示：`Implicit publishing triggered by git tag. This behavior will be disabled in electron-builder v27. Please use --publish explicitly.` **修复**：打包步骤加 `--publish never` 并移除 `GH_TOKEN` env，让 softprops action 作唯一上传通道。后续若升级到 electron-builder v27+，隐式发布默认禁用，但 `--publish never` 仍是最明确写法。asset 名带点号（`OCR.App-*.exe`）是 GitHub 空格规范化的结果，不影响下载使用；若要连字符名需改 `productName` 去空格（会影响窗口标题/安装目录，权衡后不改）。
+22. **vitest 在 UNC 路径经 `wsl` 调用会触发 vite-node 正则炸（2026-06-23 发现）**: 从 Windows Git Bash 经 `wsl -d Ubuntu -- bash -c "cd /home/... && npx vitest run"` 跑测试，cwd 被暴露成 `file://wsl.localhost/...`，vite-node 的 `utils.mjs` 构造正则 `/(?:^|/@fs/)\(:[\/])/` 时报 `SyntaxError: Invalid regular expression ... Unmatched ')'`。**避坑**：vitest 必须在 WSL 原生终端（不经 Windows Bash 的 wsl 调用）或 Windows 原生路径 `C:\Users\yanga\Projects\ocr-app` 跑。typecheck 不受此影响。
