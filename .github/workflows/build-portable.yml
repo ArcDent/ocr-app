@@ -33,9 +33,7 @@ jobs:
         run: npm run build
 
       - name: Package portable exe
-        run: npx electron-builder --win portable
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --win portable --publish never
 
       - name: Resolve artifact name
         id: artifact
